@@ -272,6 +272,45 @@ builds must finish before any scientific timing; run GPU and CPU timing serially
 Raw timing arrays, actual scores, model hashes and full-test predictions remain
 outside the checkout. Feature generation, queueing and network are excluded.
 
+## CatBoost and ridge across temporal feature recipes
+
+`feature-fit` compares five fixed representations: current144, mean5 (144),
+current+mean5 (288), five concatenated vectors (720), and a project-defined
+1440-feature bank spanning384 rows. The three five-vector recipes retain their
+Nousi §4.1/Figure1 attribution in `configs/feature_comparison.json`; the longer
+bank is an extension, not a published optimum. Labels, known partition bounds
+and eligible sample IDs stay identical to the reference MLPLOB protocol.
+
+CatBoost retains depth4/256 symmetric trees and seed42. The existing288-feature
+checkpoint is reused byte-for-byte. Ridge is a three-score least-squares
+classifier with an intercept, train-only standard deviations and validation-only
+selection of alpha/class weighting from the frozen config. Its FP64 affine
+coefficients include scaling, so inference does not separately normalize data.
+This replaces the earlier weaker unscaled/unweighted ridge recipe; feature
+effects should be compared within this round.
+
+```sh
+"$BASELINE_ARTIFACT_ROOT/venv-tree288/bin/inference-baselines" feature-fit \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" \
+  --reuse "$BASELINE_ARTIFACT_ROOT/trees-288-42" \
+  --output "$BASELINE_ARTIFACT_ROOT/cat-ridge-features-42"
+"$BASELINE_ARTIFACT_ROOT/venv-tree288/bin/inference-baselines" feature-benchmark \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" \
+  --run "$BASELINE_ARTIFACT_ROOT/cat-ridge-features-42" \
+  --catboost-library "$BASELINE_ARTIFACT_ROOT/native-libraries/libcatboostmodel-linux-x86_64-1.2.10.so" \
+  --cpu 0 --output "$BASELINE_ARTIFACT_ROOT/cat-ridge-features-measurements-42"
+```
+
+The C++ feature implementation serves both offline preparation and online state
+updates. Known partitions initialize their own history. Five-vector means use
+ordered FP64 sums; the longer bank uses FP64 rolling sums and FP32 means.
+Native validation checks precede native full-test checks; both compare identical
+saved weights with Python. Timing uses one CPU, 10,000 consecutive snapshots,
+three repeats and seeded interleaving of prepared/streaming boundaries, retaining
+every observation. Streaming includes state update, feature assembly, prediction
+and argmax; raw feature generation and setup are outside the boundary. Scientific
+timing must run after all controlled training, builds and tests have finished.
+
 ## Fixed 288-feature native tree workflow
 
 `tree-fit` compares XGBoost 3.4.1, LightGBM 4.7.0 and CatBoost 1.2.10 with

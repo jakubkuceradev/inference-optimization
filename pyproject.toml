@@ -21,7 +21,7 @@ inference-baselines = "inference_baselines.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-inference_baselines = ["configs/*.json", "native/*.cpp"]
+inference_baselines = ["configs/*.json", "native/*.cpp", "native/*.h"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

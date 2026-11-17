@@ -1,0 +1,24 @@
+{
+  "purpose": "Representative accuracy/latency workflow across fixed feature recipes; not FI-2010 optimization",
+  "seed": 42,
+  "threads": 4,
+  "catboost_rounds": 256,
+  "catboost": {"loss_function": "MultiClass", "grow_policy": "SymmetricTree", "depth": 4, "learning_rate": 0.05, "l2_leaf_reg": 3, "border_count": 254, "task_type": "CPU", "bootstrap_type": "No", "allow_writing_files": false, "random_seed": 42, "thread_count": 4},
+  "ridge": {"targets": "three +/-1 least-squares scores, intercept", "alphas": [0.1, 1, 10, 100, 1000, 10000], "weights": ["uniform", "balanced"], "scaling": "eligible-training standard deviations, folded into FP64 affine coefficients", "selection": "maximum validation macro-F1, first candidate on ties"},
+  "recipes": {
+    "current": {"dimension": 144, "history": 1, "definition": "current supplied vector", "source": "https://arxiv.org/abs/1705.03233", "location": "dataset feature representation"},
+    "mean5": {"dimension": 144, "history": 5, "definition": "mean of current plus four previous vectors", "source": "https://arxiv.org/pdf/1809.07861", "location": "v2, section 4.1, Figure 1; mean"},
+    "current_mean5": {"dimension": 288, "history": 5, "definition": "current144 then mean5", "source": "https://arxiv.org/pdf/1809.07861", "location": "v2, section 4.1, Figure 1; last plus mean"},
+    "concat5": {"dimension": 720, "history": 5, "definition": "five supplied vectors, current to oldest", "lags": [0, 1, 2, 3, 4], "source": "https://arxiv.org/pdf/1809.07861", "location": "v2, section 4.1, Figure 1; concat; ordering explicitly fixed here"},
+    "multiscale384": {"dimension": 1440, "history": 384, "definition": "current144, means5/20/100/384, lags1/4/19/99/383", "means": [5, 20, 100, 384], "lags": [1, 4, 19, 99, 383], "source": "Project-defined extension inspired by Nousi et al.; not a published or optimized feature set", "inspiration_url": "https://arxiv.org/pdf/1809.07861"}
+  },
+  "feature_arithmetic": "FP32 supplied inputs. Paper mean5 uses ordered FP64 sum then one FP32 rounding; multiscale uses FP64 rolling sums initialized from full history, then FP32 means. Same C++ feature code offline and online.",
+  "feature_selection": "Not performed; Ntakaris273-feature pool is not reconstructed",
+  "calls": 10000,
+  "repeats": 3,
+  "warmup": 100,
+  "catboost_atol": 0.000001,
+  "catboost_rtol": 0.00001,
+  "ridge_atol": 0.000000001,
+  "ridge_rtol": 0.00000001
+}

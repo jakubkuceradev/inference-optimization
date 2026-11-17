@@ -8,11 +8,12 @@ from .common import configure, read_json
 
 def main():
     parser = argparse.ArgumentParser(description="FI-2010 same-weight reference baselines")
-    parser.add_argument("command", choices=["audit", "prepare", "control", "smoke", "train", "diagnose", "evaluate", "benchmark", "report", "gpu-evaluate", "gpu-benchmark", "shallow-fit", "shallow-benchmark", "tree-fit", "tree-benchmark"])
+    parser.add_argument("command", choices=["audit", "prepare", "control", "smoke", "train", "diagnose", "evaluate", "benchmark", "report", "gpu-evaluate", "gpu-benchmark", "shallow-fit", "shallow-benchmark", "tree-fit", "tree-benchmark", "feature-fit", "feature-benchmark"])
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--source", type=Path)
     parser.add_argument("--data", type=Path)
     parser.add_argument("--run", type=Path)
+    parser.add_argument("--reuse", type=Path, help="Completed tree-fit run whose identical 288-feature CatBoost checkpoint is reused")
     parser.add_argument("--evaluation", type=Path, help="Completed GPU evaluation directory for gpu-benchmark")
     parser.add_argument("--catboost-library", type=Path, help="CatBoost native evaluator shared library for tree-benchmark")
     parser.add_argument("--config", type=Path, default=Path(__file__).resolve().parent/"configs/fi2010.json")
@@ -30,7 +31,8 @@ def main():
                     "benchmark": ["data", "run"], "report": ["run"],
                     "gpu-evaluate": ["data", "run"], "gpu-benchmark": ["data", "run", "evaluation"],
                     "shallow-fit": ["data"], "shallow-benchmark": ["data", "run"],
-                    "tree-fit": ["data"], "tree-benchmark": ["data", "run", "catboost_library", "cpu"]}
+                    "tree-fit": ["data"], "tree-benchmark": ["data", "run", "catboost_library", "cpu"],
+                    "feature-fit": ["data", "reuse"], "feature-benchmark": ["data", "run", "catboost_library", "cpu"]}
     for name in requirements.get(args.command, []):
         if getattr(args, name) is None:
             parser.error(f"--{name} is required for {args.command}")
@@ -38,7 +40,7 @@ def main():
     if args.command.startswith("gpu-"):
         from .common import external
         os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", str(external(args.output).parent/"gpu-inductor-cache"))
-    configure(1 if args.command in ("diagnose", "benchmark", "gpu-benchmark", "shallow-benchmark", "tree-benchmark") else config["threads"], args.cpu)
+    configure(1 if args.command in ("diagnose", "benchmark", "gpu-benchmark", "shallow-benchmark", "tree-benchmark", "feature-benchmark") else config["threads"], args.cpu)
     if args.command in ("prepare", "audit"):
         if args.source is None:
             parser.error("--source is required")
@@ -61,6 +63,12 @@ def main():
     elif args.command == "diagnose":
         from .evaluation import diagnose
         result = diagnose(args.data, args.run, args.output, args.runtime)
+    elif args.command == "feature-fit":
+        from .feature_compare import fit
+        result = fit(args.data, args.output, args.reuse)
+    elif args.command == "feature-benchmark":
+        from .feature_compare import benchmark
+        result = benchmark(args.data, args.run, args.output, args.catboost_library, args.cpu)
     elif args.command == "tree-fit":
         from .trees import fit
         result = fit(args.data, args.output)
