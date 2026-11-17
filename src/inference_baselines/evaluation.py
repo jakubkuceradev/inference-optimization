@@ -37,13 +37,22 @@ def freeze_checks(model, runtime, validation, output, config):
                                  np.broadcast_to(random[:, :1, :], random.shape),
                                  np.broadcast_to(random[:, :, :1], random.shape)])
     checks = {}
+    saved = {"validation_index": np.asarray(validation.index[positions]), "diagnostic_inputs": diagnostic}
     # Compare at batch one too; batching can change reduction/kernel choices.
     for name, x in (("validation_bulk", real), ("diagnostic_bulk", diagnostic)):
         with np.errstate(invalid="ignore", divide="ignore", over="ignore"):
-            checks[name] = compare(reference(model, x), runtime(x), config["atol"], config["rtol"])
+            expected, actual = reference(model, x), runtime(x)
+            checks[name] = compare(expected, actual, config["atol"], config["rtol"])
+            saved[f"{name}_reference"] = expected
+            saved[f"{name}_runtime"] = actual
+            if name == "diagnostic_bulk":
+                checks["per_diagnostic"] = {label: compare(expected[i:i+1], actual[i:i+1], config["atol"], config["rtol"])
+                    for i,label in enumerate(["random", "near_constant", "zero", "constant_time", "constant_feature"])}
     eager = np.concatenate([reference(model, x[None]) for x in real])
     candidate = np.concatenate([runtime(x[None]) for x in real])
     checks["validation_batch_one"] = compare(eager, candidate, config["atol"], config["rtol"])
+    saved.update(validation_batch_one_reference=eager, validation_batch_one_runtime=candidate)
+    np.savez(output / "validation-diagnostics.npz", **saved)
     checks.update({"atol": config["atol"], "rtol": config["rtol"],
                    "policy": "strict logit gate retained even when diagnostics fail; never widened after test",
                    "diagnostic_order": ["random", "near_constant", "zero", "constant_time", "constant_feature"],

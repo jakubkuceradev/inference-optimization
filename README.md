@@ -74,6 +74,14 @@ for resume, and record CUDA-to-CPU validation output differences plus an exact
 CPU save/reload check. GPU timing is excluded; inference comparisons stay on CPU.
 GPU devices may require host execution outside the tool filesystem sandbox.
 
+The first experiment is scoped to seed 42; seeds 43/44 are explicitly deferred.
+For a fresh experiment, copy
+`src/inference_baselines/configs/schedule-seed42.json` to the artifact root as
+`schedule.json` before starting. Do not overwrite a running schedule. This gives
+the report its seed coverage; the original three-seed defaults remain available
+in the training configuration. A single seed supports same-weight runtime
+comparisons but does not estimate training variability.
+
 ## Audit and train
 
 `audit` and `prepare` are aliases. Both verify hashes/ZIP CRCs, dimensions, all
@@ -88,13 +96,14 @@ internal-segment status.
   --output "$BASELINE_ARTIFACT_ROOT/data-v1"
 "$BASELINE_ARTIFACT_ROOT/venv/bin/inference-baselines" control \
   --data "$BASELINE_ARTIFACT_ROOT/data-v1" --output "$BASELINE_ARTIFACT_ROOT/control-v1"
-"$BASELINE_ARTIFACT_ROOT/venv/bin/inference-baselines" smoke \
+"$BASELINE_ARTIFACT_ROOT/venv-cuda/bin/inference-baselines" smoke --device cuda \
   --data "$BASELINE_ARTIFACT_ROOT/data-v1" --output "$BASELINE_ARTIFACT_ROOT/smoke-42"
 ```
 
 The recipe in [fi2010.json](src/inference_baselines/configs/fi2010.json) fixes
-width 144, three block pairs, FP32, Adam lr 0.0003, batch 32, seeds 42/43/44 and
-ten epochs. Fixed EMA decay 0.999 updates after each optimizer step. Select the
+width 144, three block pairs, FP32, Adam lr 0.0003, batch 32, available seeds
+42/43/44 and ten epochs. This experiment runs seed 42 only. Fixed EMA decay
+0.999 updates after each optimizer step. Select the
 minimum sample-weighted EMA validation loss, earliest exact tie. Test outcomes
 never select epochs, preprocessing, tolerances or hyperparameters.
 
@@ -113,11 +122,9 @@ choose the compute plan and explicitly add `--allow-long-run`; epochs/seeds/data
 are never silently reduced.
 
 ```bash
-for seed in 42 43 44; do
-  "$BASELINE_ARTIFACT_ROOT/venv/bin/inference-baselines" train \
-    --data "$BASELINE_ARTIFACT_ROOT/data-v1" \
-    --seed "$seed" --output "$BASELINE_ARTIFACT_ROOT/seed-$seed"
-done
+"$BASELINE_ARTIFACT_ROOT/venv-cuda/bin/inference-baselines" train --device cuda \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" \
+  --seed 42 --output "$BASELINE_ARTIFACT_ROOT/seed-42"
 ```
 
 Resume a failed/interrupted run using the same arguments plus `--resume`.
@@ -134,7 +141,7 @@ it produces no financial quality or baseline latency. `evaluate` and `benchmark`
 reject smoke checkpoints. Run every selected seed across runtimes:
 
 ```bash
-for seed in 42 43 44; do
+for seed in 42; do
   for runtime in eager compiled ort; do
     "$BASELINE_ARTIFACT_ROOT/venv/bin/inference-baselines" evaluate \
       --data "$BASELINE_ARTIFACT_ROOT/data-v1" --run "$BASELINE_ARTIFACT_ROOT/seed-$seed" \

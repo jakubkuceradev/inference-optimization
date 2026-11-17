@@ -67,6 +67,12 @@ class BaselineTests(unittest.TestCase):
             self.assertEqual(result["reference"]["count"],2)
             self.assertEqual(result["numerical"]["tolerance_pass_count"],2)
             self.assertEqual(result["checkpoint_sha256"],selected["checkpoint_sha256"])
+            self.assertIn("near_constant", result["diagnostics"]["per_diagnostic"])
+            self.assertTrue((root/"evaluation-42-eager/validation-diagnostics.npz").exists())
+            exported = evaluate(data,root/"seed-42",root/"evaluation-42-ort","ort")
+            self.assertEqual(exported["canonical_prediction_sha256"],digest(root/"evaluation-42-eager/predictions.npz"))
+            with np.load(root/"evaluation-42-eager/predictions.npz") as eager, np.load(root/"evaluation-42-ort/predictions.npz") as ort:
+                np.testing.assert_array_equal(eager["reference_logits"],ort["reference_logits"])
             # Exercise real timing/report plumbing on tiny synthetic inputs only.
             from inference_baselines.timing import benchmark
             from inference_baselines.report import report
@@ -86,6 +92,15 @@ class BaselineTests(unittest.TestCase):
             summary = report(root,root/"report-v1")
             self.assertEqual(summary["aggregate"]["completed_seeds"],1)
             self.assertEqual(summary["aggregate"]["scheduled_seeds"],3)
+            self.assertIsNone(summary["aggregate"]["macro_f1"]["std_population"])
+            result_path = root/"evaluation-42-eager/result.json"
+            saved = read_json(result_path)
+            write_json(result_path,{**saved,"checkpoint_sha256":"mismatched"})
+            try:
+                with self.assertRaisesRegex(ValueError,"mixed checkpoint"):
+                    report(root,root/"mismatched-report")
+            finally:
+                write_json(result_path,saved)
             with self.assertRaisesRegex(ValueError,"Smoke checkpoints"):
                 evaluate(data,root/"smoke-42",root/"invalid-evaluation","eager")
 

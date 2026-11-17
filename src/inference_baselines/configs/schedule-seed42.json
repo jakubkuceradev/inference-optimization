@@ -1,0 +1,8 @@
+{
+  "seeds": [42],
+  "deferred_seeds": [43, 44],
+  "epochs_per_seed": 10,
+  "training_device": "cuda",
+  "inference_device": "cpu",
+  "reason": "Single-seed systems baseline; additional training seeds explicitly deferred. Training variability is not estimated."
+}
