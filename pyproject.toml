@@ -11,6 +11,7 @@ dependencies = ["numpy==2.5.4", "torch>=2.9.1,<=2.15.0", "onnx==1.23.2", "onnxru
 [project.optional-dependencies]
 cpu = ["torch==2.15.0+cpu"]
 cuda = ["torch==2.9.1+cu130"]
+shallow = ["xgboost-cpu==3.4.1", "threadpoolctl==3.6.0"]
 
 [project.scripts]
 inference-baselines = "inference_baselines.cli:main"

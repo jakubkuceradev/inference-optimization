@@ -83,7 +83,8 @@ UV_PROJECT_ENVIRONMENT="$BASELINE_ARTIFACT_ROOT/venv-cuda" uv sync --locked --ex
 Pass `--device cuda` to smoke and train using the CUDA environment's executable.
 Save selected weights as CPU tensors. Preserve CUDA optimizer/RNG state separately
 for resume, and record CUDA-to-CPU validation output differences plus an exact
-CPU save/reload check. GPU timing is excluded; inference comparisons stay on CPU.
+CPU save/reload check. The original inference round stays on CPU; the separate
+CUDA inference extension below reuses its selected checkpoint and saved outputs.
 GPU devices may require host execution outside the tool filesystem sandbox.
 
 The first experiment is scoped to seed 42; seeds 43/44 are explicitly deferred.
@@ -212,6 +213,64 @@ call boundary and included in reported wall capacity.
 Reports preserve missing/failed seeds and paths and show aggregate coverage.
 Overlapping windows are dependent observations. No profitability, broad market
 generalization, arrival-latency, deployment SLA or novel-optimization claim follows.
+
+## CUDA inference and snapshot comparators
+
+The CUDA follow-up does not retrain MLPLOB. `gpu-evaluate` checks validation and
+synthetics before scoring the complete eligible test set with eager CUDA and
+explicit CUDA Graph replay. It compares both with saved CPU predictions and
+with CUDA eager, retaining differences between CPU and CUDA package versions.
+The existing PyTorch 2.9/Python 3.14 environment rejects `torch.compile`; that
+path is recorded as unsupported. Its ONNX Runtime package has only the CPU
+provider, so this extension makes no exported-GPU claim.
+
+```bash
+"$BASELINE_ARTIFACT_ROOT/venv-cuda/bin/inference-baselines" gpu-evaluate \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" --run "$BASELINE_ARTIFACT_ROOT/seed-42" \
+  --output "$BASELINE_ARTIFACT_ROOT/gpu-evaluation-42-v2"
+"$BASELINE_ARTIFACT_ROOT/venv-cuda/bin/inference-baselines" gpu-benchmark \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" --run "$BASELINE_ARTIFACT_ROOT/seed-42" \
+  --evaluation "$BASELINE_ARTIFACT_ROOT/gpu-evaluation-42-v2" \
+  --cpu 0 --output "$BASELINE_ARTIFACT_ROOT/gpu-measurements-42"
+```
+
+CUDA prepared timing starts with resident GPU input and ends after completed
+GPU logits/argmax, with explicit stream synchronization and a host wall timer.
+Local preparation includes CPU history copying, pinned staging, H2D, inference,
+D2H three logits and CPU argmax. Audit logits are retained after each timer.
+CUDA Graph addresses remain stable; captures, diagnostics and warmup precede
+timing. Both boundaries use the same three repeats of 10,000 inputs as CPU.
+GPU-only latency is not host-to-decision latency.
+
+The exploratory comparator uses each target's current 144 supplied features
+at the identical eligible IDs, whereas MLPLOB consumes 384 rows. It preserves
+the caveated split and supplied normalization. Ridge fits three +/-1
+least-squares scores with an intercept; this avoids treating up/stable/down
+as ordinal regression targets. Four ridge penalties select by validation
+macro-F1; these scores have no declared probability calibration or log loss.
+XGBoost CPU hist trains depth 2/4/6, at most 300 rounds, with validation-log-loss
+early stopping (20 rounds). Fixed tree-count prefixes and the selected endpoint
+form an initial curve. All choices and model hashes are sealed before test
+access. This is a bounded exploratory curve, not an optimized frontier across
+feature sets, MLPLOB architectures or compiled tree runtimes.
+
+```bash
+UV_PROJECT_ENVIRONMENT="$BASELINE_ARTIFACT_ROOT/venv-shallow" \
+  uv sync --locked --extra cpu --extra shallow
+"$BASELINE_ARTIFACT_ROOT/venv-shallow/bin/inference-baselines" shallow-fit \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" --output "$BASELINE_ARTIFACT_ROOT/shallow-42"
+"$BASELINE_ARTIFACT_ROOT/venv-shallow/bin/inference-baselines" shallow-benchmark \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" --run "$BASELINE_ARTIFACT_ROOT/shallow-42" \
+  --cpu 0 --output "$BASELINE_ARTIFACT_ROOT/shallow-measurements-42"
+```
+
+Comparator timing uses one pinned CPU and one numerical thread. Prepared input
+is contiguous FP32 [1,144]; local preparation copies that vector. NumPy affine
+scores or XGBoost `inplace_predict` plus CPU argmax finish the timed boundary.
+Python/native API overhead is included. Model generation, training, tests and
+builds must finish before any scientific timing; run GPU and CPU timing serially.
+Raw timing arrays, actual scores, model hashes and full-test predictions remain
+outside the checkout. Feature generation, queueing and network are excluded.
 
 ## Verification
 
