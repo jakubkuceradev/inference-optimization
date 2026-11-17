@@ -272,6 +272,67 @@ builds must finish before any scientific timing; run GPU and CPU timing serially
 Raw timing arrays, actual scores, model hashes and full-test predictions remain
 outside the checkout. Feature generation, queueing and network are excluded.
 
+## Fixed 288-feature native tree workflow
+
+`tree-fit` compares XGBoost 3.4.1, LightGBM 4.7.0 and CatBoost 1.2.10 with
+one fixed seed-42/depth-4 recipe each. Its 288 features concatenate the current
+144-vector with the mean of that vector and the four preceding vectors, from
+[Nousi et al., §4.1/Figure 1](https://arxiv.org/pdf/1809.07861). The source,
+version, formula, arithmetic and adaptation are retained in
+[tree288.json](src/inference_baselines/configs/tree288.json), each run's plan
+and reports. This is a representative workflow comparison, not a dataset
+optimization exercise or reproduction of the paper's labels/normalization.
+No feature selection or additional history variants run in this increment.
+
+Each ensemble trains once for 256 rounds at learning rate .05. Saved prefixes
+16/32/64/128/256 expose configuration changes without retraining. Boosting
+rounds do not imply equal multiclass tree counts or execution cost. Labels,
+eligible IDs and supplied normalization remain those of the original baseline.
+All configurations are fixed before test scoring; no test-driven tuning.
+
+```bash
+UV_PROJECT_ENVIRONMENT="$BASELINE_ARTIFACT_ROOT/venv-tree288" \
+  uv sync --locked --extra cpu --extra trees
+"$BASELINE_ARTIFACT_ROOT/venv-tree288/bin/inference-baselines" tree-fit \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" --output "$BASELINE_ARTIFACT_ROOT/trees-288-42"
+"$BASELINE_ARTIFACT_ROOT/venv-tree288/bin/inference-baselines" tree-benchmark \
+  --data "$BASELINE_ARTIFACT_ROOT/data-v1" --run "$BASELINE_ARTIFACT_ROOT/trees-288-42" \
+  --catboost-library "$BASELINE_ARTIFACT_ROOT/native-libraries/libcatboostmodel-linux-x86_64-1.2.10.so" \
+  --cpu 0 --output "$BASELINE_ARTIFACT_ROOT/trees-288-measurements-42"
+```
+
+The CatBoost native evaluator is the separately downloaded
+[official 1.2.10 release](https://github.com/catboost/catboost/releases/tag/v1.2.10),
+whose URL/hash are retained with the library. No command silently downloads it.
+The benchmark compiles the packaged C++ runner outside the checkout, validates
+the feature ring, checks native probabilities on validation, then compares all
+eligible test predictions with the same saved model's Python predictions.
+The frozen probability tolerance is atol=1e-6/rtol=1e-5, checked without a
+second softmax. Full predictions, numerical errors and per-class scores remain.
+
+XGBoost reuses its array-interface/config strings and input buffer; its C API
+still parses JSON internally. LightGBM uses its preinitialized fast single-row
+C API. CatBoost uses the native evaluation library. The C++ measurement loop
+has no Python/ctypes calls or runner heap allocation per prediction; library
+internal allocation is not claimed absent. All paths compute three probabilities
+and consume argmax inside timing. Engine setup is outside measured calls.
+
+Prepared timing begins with contiguous FP32[288]. Local preparation begins with
+the newest FP32[144] supplied vector and updates a preallocated five-row ring,
+computes the ordered FP64 mean rounded to FP32, predicts and consumes the
+decision. Exact feature parity is checked over the entire stream before timing.
+This fixed five-row mean avoids expensive general window/array construction.
+Prefill and resets are outside warmed calls. Raw feature generation, network,
+queueing and disk are excluded and remain material limitations.
+
+Three seeded interleaved repeats of 10,000 consecutive target IDs run for all
+15 points and both boundaries (900,000 retained samples and probabilities).
+One pinned host core/thread, existing laptop thermal/background caveats, and
+no concurrent controlled builds/tests/training. This input sequence differs
+from the original uniformly spaced CPU timing; compare paired native paths
+within this round. Peak native process memory includes all resident libraries
+and models. Artifacts stay external and earlier runs remain unchanged.
+
 ## Verification
 
 ```bash

@@ -1,0 +1,26 @@
+{
+  "purpose": "Representative temporal accuracy/latency workflow; fixed recipes, not dataset optimization",
+  "seed": 42,
+  "rounds": 256,
+  "prefixes": [16, 32, 64, 128, 256],
+  "feature_set": {
+    "name": "current-plus-mean5",
+    "dimension": 288,
+    "history": 5,
+    "order": "current 144 supplied features, then mean of current and four preceding vectors",
+    "arithmetic": "sum oldest to newest in FP64, divide by five, round once to FP32",
+    "source": {"authors": "Nousi et al.", "title": "Machine Learning for Forecasting Mid Price Movement using Limit Order Book Data", "url": "https://arxiv.org/pdf/1809.07861", "version": "v2, 2019-04-08", "location": "Section 4.1, Figure 1; last plus mean representation"},
+    "adaptation": "Reuse our supplied features, original row-145 labels and eligible IDs; do not adopt the study's relabeling or normalization"
+  },
+  "sample_weights": "uniform for this fixed first comparison",
+  "learning_rate": 0.05,
+  "training_threads": 4,
+  "xgboost": {"objective": "multi:softprob", "num_class": 3, "tree_method": "hist", "device": "cpu", "max_depth": 4, "max_bin": 256, "min_child_weight": 1, "lambda": 1, "subsample": 1, "colsample_bytree": 1},
+  "lightgbm": {"objective": "multiclass", "num_class": 3, "max_depth": 4, "num_leaves": 15, "min_data_in_leaf": 200, "lambda_l2": 1, "max_bin": 255, "feature_fraction": 1, "bagging_fraction": 1, "bagging_freq": 0, "deterministic": true, "force_col_wise": true, "verbosity": -1},
+  "catboost": {"loss_function": "MultiClass", "grow_policy": "SymmetricTree", "depth": 4, "l2_leaf_reg": 3, "border_count": 254, "task_type": "CPU", "bootstrap_type": "No", "allow_writing_files": false},
+  "native_probability_atol": 0.000001,
+  "native_probability_rtol": 0.00001,
+  "calls": 10000,
+  "repeats": 3,
+  "warmup": 100
+}

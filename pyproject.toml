@@ -12,6 +12,7 @@ dependencies = ["numpy==2.5.4", "torch>=2.9.1,<=2.15.0", "onnx==1.23.2", "onnxru
 cpu = ["torch==2.15.0+cpu"]
 cuda = ["torch==2.9.1+cu130"]
 shallow = ["xgboost-cpu==3.4.1", "threadpoolctl==3.6.0"]
+trees = ["xgboost-cpu==3.4.1", "lightgbm==4.7.0", "catboost==1.2.10", "threadpoolctl==3.6.0"]
 
 [project.scripts]
 inference-baselines = "inference_baselines.cli:main"
@@ -20,7 +21,7 @@ inference-baselines = "inference_baselines.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-inference_baselines = ["configs/*.json"]
+inference_baselines = ["configs/*.json", "native/*.cpp"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
