@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import os
+import subprocess
 import sys
 from pathlib import Path
 import tempfile
@@ -38,6 +39,21 @@ class BaselineTests(unittest.TestCase):
         expected = {(n,b) for n in names for b in ("prepared","local_preparation")}
         for repeat in first:
             self.assertEqual({tuple(x) for x in repeat}, expected)
+
+    def test_timing_workers_inherit_affinity(self):
+        code = '''
+import os
+from pathlib import Path
+from inference_baselines.common import configure
+cpu = min(os.sched_getaffinity(0))
+configure(1, cpu)
+for path in Path('/proc/self/task').iterdir():
+    try:
+        assert os.sched_getaffinity(int(path.name)) == {cpu}
+    except ProcessLookupError:
+        pass
+'''
+        subprocess.run([sys.executable,"-c",code],check=True,capture_output=True,text=True)
 
     def test_tiny_train_select_reload_and_full_evaluation(self):
         from inference_baselines.training import train, load_selected

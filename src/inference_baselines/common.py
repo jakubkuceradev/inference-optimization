@@ -40,9 +40,11 @@ def external(path):
 
 def configure(threads=1, cpu=None):
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-    import torch
     if cpu is not None:
         os.sched_setaffinity(0, {cpu})
+    # Imported numerical libraries can create worker pools immediately. Their
+    # threads must inherit the timing affinity, not only the calling thread.
+    import torch
     torch.set_num_threads(threads)
     torch.set_num_interop_threads(1)
     torch.use_deterministic_algorithms(True)
