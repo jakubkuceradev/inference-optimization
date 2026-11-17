@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/LeonardoBerti00/TLOB",
+  "revision": "f1c0af4d81067978914361766db0457a7d8b6a46",
+  "license": "MIT; see LICENSE-TLOB",
+  "files_sha256": {
+    "models/mlplob.py": "dbd518a3757bc56f90de96a0b89ec45e1c2c146de29b813efa784430f212ac61",
+    "models/bin.py": "1efd98dbad2a40612879b3148ef7bf534b2b100ce95d671f13dd3de91684807d",
+    "main.py": "081b15814f2d0a3b45bf07162894a2b782c5462f2418bc79cc88ab963cfb2cb5",
+    "config/config.py": "3b14ee43f6114c01e2f092c474a0107a7ffd2cd5aa5dd3da7f2b116a7f37c110",
+    "models/engine.py": "3ce9779fd0216341d738130ee64896564a079889aa2fcbd448f7f2112ca57c94",
+    "preprocessing/fi_2010.py": "4d8b55bfb6c29416f1b6a7e9595b0feff9dc967ed67acfab17d5d9d6055ab16e"
+  }
+}

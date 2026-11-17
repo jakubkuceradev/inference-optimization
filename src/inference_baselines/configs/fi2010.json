@@ -1,0 +1,18 @@
+{
+  "protocol": "fi2010-source-compatible-caveated-v1",
+  "model": {"hidden_dim": 144, "num_layers": 3, "seq_size": 384, "num_features": 144, "dataset_type": "FI_2010"},
+  "seeds": [42, 43, 44],
+  "epochs": 10,
+  "batch_size": 32,
+  "learning_rate": 0.0003,
+  "ema_decay": 0.999,
+  "threads": 4,
+  "evaluation_batch_size": 32,
+  "atol": 0.00003,
+  "rtol": 0.0003,
+  "warmup": 100,
+  "repeats": 3,
+  "calls": 10000,
+  "timing_seed": 42,
+  "feasibility_max_hours": 24
+}
