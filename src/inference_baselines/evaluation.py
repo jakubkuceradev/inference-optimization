@@ -87,6 +87,7 @@ def evaluate(data, run, output, name):
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "status.json", {"status": "running", "runtime": name})
     try:
+        execution_environment = environment()
         model, manifest, selected = binding(data, run)
         config = manifest["config"]
         validation = Corpus(data, "validation")
@@ -131,7 +132,7 @@ def evaluate(data, run, output, name):
                   "canonical_prediction_sha256": canonical_hash,
                   "checkpoint_sha256": selected["checkpoint_sha256"], "dataset_manifest_sha256": test.manifest_hash,
                   "numerical_freeze_sha256": digest(output / "numerical-freeze.json"),
-                  "environment": environment(), "limitations": LIMITS,
+                  "environment": execution_environment, "limitations": LIMITS,
                   "numerical": compare(refs, candidates, config["atol"], config["rtol"]),
                   "diagnostics": freeze}
         for key, logits in (("reference", refs), ("candidate", candidates)):
@@ -151,6 +152,7 @@ def diagnose(data, run, output, name):
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "status.json", {"status": "running", "runtime": name})
     try:
+        execution_environment = environment()
         model, manifest, selected = binding(data, run, require_full=False)
         validation = Corpus(data, "validation")
         runtime = Runtime(model, name, output)
@@ -158,7 +160,7 @@ def diagnose(data, run, output, name):
         result = {"kind": "validation-only tooling diagnostic; not baseline quality/performance",
                   "checkpoint_load_seconds": selected["load_seconds"],
                   "training_kind": manifest["kind"], "checkpoint_sha256": selected["checkpoint_sha256"],
-                  "runtime": runtime.metadata(), "checks": checks, "environment": environment()}
+                  "runtime": runtime.metadata(), "checks": checks, "environment": execution_environment}
         write_json(output / "result.json", result)
         write_json(output / "status.json", {"status": "completed", "runtime": name})
         return result
