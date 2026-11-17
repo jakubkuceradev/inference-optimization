@@ -42,6 +42,18 @@ export UV_PROJECT_ENVIRONMENT="$BASELINE_ARTIFACT_ROOT/venv"
 uv sync --locked --extra cpu
 ```
 
+Set the compiler cache location before starting a numerical CLI process:
+
+```bash
+export TORCHINDUCTOR_CACHE_DIR="$BASELINE_ARTIFACT_ROOT/inductor-cache"
+```
+
+PyTorch can initialize its default cache during imports, before the runtime
+adapter selects a directory. The measured run reused `/tmp/torchinductor_ashen`;
+its snapshot and exact cache-state notes are preserved with the experiment.
+First-call numbers are observations with existing caches, not clean compilation
+benchmarks. Global compiler and OS caches were not cleared.
+
 Every output directory must be new. Preserve datasets, environments, checkpoints,
 exports, compiler caches and generated reports outside checkouts. Attribution:
 FI-2010, Ntakaris et al./BigDataFinance, CC-BY 4.0. Model adaptation and upstream
