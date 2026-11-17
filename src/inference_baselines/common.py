@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import shlex
 import subprocess
 import sys
 import time
@@ -66,8 +67,16 @@ def environment():
     root = Path(__file__).resolve().parents[2]
     revision = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], text=True, capture_output=True)
     package = Path(__file__).resolve().parent
+    compiler_command = [*shlex.split(os.environ.get("CXX", "c++")), "--version"]
+    try:
+        compiler = subprocess.run(compiler_command, text=True, capture_output=True)
+        compiler_info = {"argv": compiler_command, "returncode": compiler.returncode,
+                         "output": compiler.stdout.strip() or compiler.stderr.strip()}
+    except OSError as error:
+        compiler_info = {"argv": compiler_command, "error": str(error)}
     return {
         "python": sys.version, "platform": platform.platform(), "versions": versions,
+        "cxx_compiler": compiler_info, "torch_build_config": torch.__config__.show(),
         "cpuinfo": Path("/proc/cpuinfo").read_text().split("\n\n")[0],
         "affinity": sorted(os.sched_getaffinity(0)), "threads": torch.get_num_threads(),
         "interop_threads": torch.get_num_interop_threads(), "precision": "FP32",
