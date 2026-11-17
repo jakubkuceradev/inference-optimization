@@ -8,7 +8,7 @@ import torch
 
 from .common import digest, environment, external, read_json, write_json
 from .data import Corpus, LIMITS
-from .evaluation import binding
+from .evaluation import binding, freeze_checks
 from .metrics import latency_summary
 from .runtime import Runtime
 
@@ -53,7 +53,8 @@ def benchmark(data, run, output, name, config):
                 "resident_runtime_count": len(names), "limitations": LIMITS + ["Laptop contention/frequency/thermals uncontrolled."]}
         write_json(output/"plan.json", plan)
         np.save(output/"input-indices.npy", order)
-        runtimes, records = {}, {n: [] for n in names}
+        runtimes, timing_diagnostics, diagnostic_seconds, records = {}, {}, {}, {n: [] for n in names}
+        validation = Corpus(data, "validation", verify=False)
         for runtime_name in names:
             directory = output/runtime_name
             directory.mkdir()
@@ -61,6 +62,11 @@ def benchmark(data, run, output, name, config):
             # Set up and warm every path before starting the interleaved schedule.
             runtime = Runtime(model, runtime_name, directory)
             runtime(test[order[0]][0][None])
+            # Quality can use several CPU threads; verify the actual one-thread
+            # timing path separately with the already frozen tolerances.
+            diagnostic_started = time.perf_counter()
+            timing_diagnostics[runtime_name] = freeze_checks(model, runtime, validation, directory, manifest["config"])
+            diagnostic_seconds[runtime_name] = time.perf_counter()-diagnostic_started
             prepared = runtime.prepare(test[order[0]][0][None])
             with torch.inference_mode():
                 for _ in range(config["warmup"]):
@@ -89,7 +95,9 @@ def benchmark(data, run, output, name, config):
                         **latency_summary(observations)})
         for runtime_name in names:
             result = {**plan, "runtime_setup": runtimes[runtime_name].metadata(), "observations": records[runtime_name],
-                      "numerical": comparisons[runtime_name]["numerical"], "diagnostics": comparisons[runtime_name]["diagnostics"],
+                      "diagnostic_setup_seconds": diagnostic_seconds[runtime_name],
+                      "numerical": comparisons[runtime_name]["numerical"], "diagnostics": timing_diagnostics[runtime_name],
+                      "quality_environment": comparisons[runtime_name]["environment"],
                       "evaluation_result_sha256": digest(Path(run).parent/f'evaluation-{manifest["seed"]}-{runtime_name}'/"result.json"),
                       "peak_process_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
                       "memory_scope": "process peak includes all resident runtimes and setup/compiler allocations",

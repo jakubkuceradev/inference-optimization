@@ -29,7 +29,7 @@ def main():
         if getattr(args, name) is None:
             parser.error(f"--{name} is required for {args.command}")
     config = read_json(args.config)
-    configure(1 if args.command in ("diagnose", "evaluate", "benchmark") else config["threads"], args.cpu)
+    configure(1 if args.command in ("diagnose", "benchmark") else config["threads"], args.cpu)
     if args.command in ("prepare", "audit"):
         if args.source is None:
             parser.error("--source is required")

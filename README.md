@@ -159,6 +159,11 @@ Metrics include macro-F1, accuracy, per-class precision/recall/F1, confusion,
 support and log loss. Majority uses eligible training targets and lowest-class
 tie-breaking, with no assumed probability convention.
 
+Bulk accuracy uses four intra-op threads for every runtime, including ORT.
+Timing uses one thread and reruns validation/synthetic checks for that actual
+execution setting using the already frozen tolerances. Quality and timing thread
+settings are recorded separately; bulk timings are not reported as batch-one latency.
+
 Finish training before timing. Select an available logical CPU; one affinity
 CPU and one intra/inter-op thread are enforced. Seed 42 is preselected without
 test-quality selection. Matched runtime evaluations must already exist.

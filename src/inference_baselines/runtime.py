@@ -26,7 +26,8 @@ class Runtime:
                               dynamic_axes={"input": {0: "batch"}, "logits": {0: "batch"}}, opset_version=18)
             onnx.checker.check_model(onnx.load(path))
             options = ort.SessionOptions()
-            options.intra_op_num_threads = options.inter_op_num_threads = 1
+            options.intra_op_num_threads = torch.get_num_threads()
+            options.inter_op_num_threads = 1
             options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
             options.optimized_model_filepath = str(output / "optimized.onnx")
             self.model = ort.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
