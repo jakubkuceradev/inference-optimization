@@ -45,7 +45,8 @@ def report(root, output):
         r = item["result"]
         n = r["numerical"]
         diagnostics = [v for v in r["diagnostics"].values() if isinstance(v, dict) and "tolerance_pass_count" in v]
-        if n["tolerance_pass_count"] == n["count"] and all(d["tolerance_pass_count"] == d["finite_row_count"] and d["nonfinite_mask_disagreements"] == 0 for d in diagnostics):
+        timed = r.get("timed_numerical", [])
+        if n["tolerance_pass_count"] == n["count"] and all(d["tolerance_pass_count"] == d["finite_row_count"] and d["nonfinite_mask_disagreements"] == 0 for d in diagnostics) and all(t["tolerance_pass_count"] == t["count"] for t in timed):
             medians = [o["p50_us"] for o in r["observations"] if o["boundary"] == "prepared"]
             valid.append((float(np.median(medians)), item["runtime"]))
     strongest = min(valid)[1] if valid else None

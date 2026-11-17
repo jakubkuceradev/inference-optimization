@@ -191,6 +191,12 @@ and math settings. p99.9 is omitted given only ten observations beyond it per
 default repeat. Laptop thermals, frequency and background contention are
 uncontrolled. No failing numerical path is advertised as an equivalent speedup.
 
+Timed calls also retain their three output logits after stopping the timer. The
+`--runtime all` comparison checks them against eager batch-one outputs from the
+same one-thread timing context, without running extra model invocations. This
+complements the full-test bulk comparison; audit-output copying is outside the
+call boundary and included in reported wall capacity.
+
 Reports preserve missing/failed seeds and paths and show aggregate coverage.
 Overlapping windows are dependent observations. No profitability, broad market
 generalization, arrival-latency, deployment SLA or novel-optimization claim follows.

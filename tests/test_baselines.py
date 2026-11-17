@@ -101,10 +101,13 @@ for path in Path('/proc/self/task').iterdir():
                 os.sched_setaffinity(0,affinity)
             timed = read_json(root/"measurements-42/eager/result.json")
             self.assertEqual(len(timed["observations"]),4)
+            self.assertEqual(len(timed["timed_numerical"]),4)
+            self.assertTrue(all(row["tolerance_pass_count"]==3 for row in timed["timed_numerical"]))
             for observation in timed["observations"]:
                 self.assertEqual(observation["count"],3)
                 path = root/"measurements-42/eager"/f"{observation['boundary']}-{observation['repeat']}-ns.npy"
                 self.assertEqual(len(np.load(path)),3)
+                self.assertEqual(np.load(path.with_name(path.name.replace("-ns.npy","-logits.npy"))).shape,(3,3))
             summary = report(root,root/"report-v1")
             self.assertEqual(summary["aggregate"]["completed_seeds"],1)
             self.assertEqual(summary["aggregate"]["scheduled_seeds"],3)

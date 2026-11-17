@@ -9,7 +9,7 @@ import torch
 from .common import digest, environment, external, read_json, write_json
 from .data import Corpus, LIMITS
 from .evaluation import binding, freeze_checks
-from .metrics import latency_summary
+from .metrics import compare, latency_summary
 from .runtime import Runtime
 
 
@@ -50,6 +50,7 @@ def benchmark(data, run, output, name, config):
                 "input_order": "uniform eligible test indices, same fixed sequence per repeat/path/boundary",
                 "measurement_order": jobs, "environment": environment(),
                 "excluded": ["disk/decompression", "raw engineered-feature generation", "network", "queueing"],
+                "output_retention": "argmax is consumed inside timing; copying three logits to audit storage happens after each timed call",
                 "resident_runtime_count": len(names), "limitations": LIMITS + ["Laptop contention/frequency/thermals uncontrolled."]}
         write_json(output/"plan.json", plan)
         np.save(output/"input-indices.npy", order)
@@ -77,6 +78,7 @@ def benchmark(data, run, output, name, config):
                 for runtime_name, boundary in assignments:
                     runtime = runtimes[runtime_name]
                     observations = np.empty(len(order), dtype=np.int64)
+                    logits = np.empty((len(order), 3), dtype=np.float32)
                     wall_start = time.perf_counter()
                     for j, index in enumerate(order):
                         if boundary == "prepared":
@@ -88,13 +90,27 @@ def benchmark(data, run, output, name, config):
                         # CPU calls complete synchronously; consume output inside the boundary.
                         int(value.argmax())
                         observations[j] = time.perf_counter_ns()-before
+                        logits[j] = value if isinstance(value, np.ndarray) else value.numpy()
                     wall_seconds = time.perf_counter()-wall_start
                     np.save(output/runtime_name/f'{boundary}-{repeat}-ns.npy', observations)
+                    np.save(output/runtime_name/f'{boundary}-{repeat}-logits.npy', logits)
                     records[runtime_name].append({"repeat": repeat, "boundary": str(boundary),
                         "wall_seconds": wall_seconds, "wall_calls_per_second": len(order)/wall_seconds,
                         **latency_summary(observations)})
         for runtime_name in names:
+            timed_numerical = []
+            if "eager" not in names:
+                with np.load(Path(run).parent/f'evaluation-{manifest["seed"]}-eager'/"predictions.npz") as saved:
+                    bulk_reference = saved["reference_logits"][order]
+            for record in records[runtime_name]:
+                stem = f"{record['boundary']}-{record['repeat']}-logits.npy"
+                expected = np.load(output/"eager"/stem) if "eager" in names else bulk_reference
+                actual = np.load(output/runtime_name/stem)
+                timed_numerical.append({"repeat": record["repeat"], "boundary": record["boundary"],
+                    "reference": "one-thread eager batch-one timed outputs" if "eager" in names else "canonical eager bulk outputs",
+                    **compare(expected, actual, manifest["config"]["atol"], manifest["config"]["rtol"])})
             result = {**plan, "runtime_setup": runtimes[runtime_name].metadata(), "observations": records[runtime_name],
+                      "timed_numerical": timed_numerical,
                       "diagnostic_setup_seconds": diagnostic_seconds[runtime_name],
                       "numerical": comparisons[runtime_name]["numerical"], "diagnostics": timing_diagnostics[runtime_name],
                       "quality_environment": comparisons[runtime_name]["environment"],
