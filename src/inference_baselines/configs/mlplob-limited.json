@@ -1,0 +1,426 @@
+{
+  "version": 1,
+  "name": "mlplob-limited",
+  "kind": "screen",
+  "support": 384,
+  "jobs": [
+    {
+      "id": "h32-w32-d1-f40-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 1,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d1-f144-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 1,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d2-f40-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 2,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d2-f144-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 2,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d3-f40-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 3,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d3-f144-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d4-f40-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 4,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w32-d4-f144-standard-s42",
+      "history": 32,
+      "width": 32,
+      "depth": 4,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d1-f40-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 1,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d1-f144-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 1,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d2-f40-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 2,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d2-f144-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 2,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d3-f40-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 3,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d3-f144-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d4-f40-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 4,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d4-f144-standard-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 4,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d1-f40-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 1,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d1-f144-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 1,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d2-f40-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 2,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d2-f144-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 2,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d3-f40-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 3,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d3-f144-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d4-f40-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 4,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w32-d4-f144-standard-s42",
+      "history": 64,
+      "width": 32,
+      "depth": 4,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d1-f40-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 1,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d1-f144-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 1,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d2-f40-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 2,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d2-f144-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 2,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d3-f40-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 3,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d3-f144-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d4-f40-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 4,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d4-f144-standard-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 4,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h16-w32-d1-f40-standard-s42",
+      "history": 16,
+      "width": 32,
+      "depth": 1,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h16-w32-d1-f144-standard-s42",
+      "history": 16,
+      "width": 32,
+      "depth": 1,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h128-w64-d2-f40-standard-s42",
+      "history": 128,
+      "width": 64,
+      "depth": 2,
+      "features": 40,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h128-w64-d2-f144-standard-s42",
+      "history": 128,
+      "width": 64,
+      "depth": 2,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d2-f40-reduced-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 2,
+      "features": 40,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d2-f144-reduced-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 2,
+      "features": 144,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d4-f40-reduced-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 4,
+      "features": 40,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h32-w64-d4-f144-reduced-s42",
+      "history": 32,
+      "width": 64,
+      "depth": 4,
+      "features": 144,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d2-f40-reduced-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 2,
+      "features": 40,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d2-f144-reduced-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 2,
+      "features": 144,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d4-f40-reduced-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 4,
+      "features": 40,
+      "expansion": "reduced",
+      "seed": 42
+    },
+    {
+      "id": "h64-w64-d4-f144-reduced-s42",
+      "history": 64,
+      "width": 64,
+      "depth": 4,
+      "features": 144,
+      "expansion": "reduced",
+      "seed": 42
+    }
+  ],
+  "recipe": {
+    "optimizer": "Adam",
+    "learning_rate": 0.0003,
+    "epochs": 20,
+    "patience": 5,
+    "minimum_epochs": 8,
+    "precision": "FP32",
+    "tf32": false,
+    "weights": "raw",
+    "selection": "equal-day-macro-f1-earliest-tie",
+    "horizon": 10
+  },
+  "timing": {
+    "warmups": 200,
+    "repeats": 3,
+    "calls": 10000,
+    "seed": 42
+  },
+  "devices": [
+    "cpu",
+    "cuda"
+  ]
+}

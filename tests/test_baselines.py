@@ -228,6 +228,20 @@ for path in Path('/proc/self/task').iterdir():
                 for axis in (1,2):
                     x = torch.randn(1,384,144).mean(axis,keepdim=True).expand(1,384,144)
                     torch.testing.assert_close(original(x),adapted(x),atol=0,rtol=0,equal_nan=True)
+            # All declared standard shapes must retain the pinned source graph,
+            # including independent input-feature count and hidden width.
+            from inference_baselines.study.plan import load, model_config
+            configs = Path(__file__).resolve().parents[1]/"src/inference_baselines/configs"
+            for plan_name in ("mlplob-limited.json","mlplob-medium.json"):
+                for job in load(configs/plan_name)["jobs"]:
+                    if job["expansion"] != "standard": continue
+                    original = module.MLPLOB(job["width"],job["depth"],job["history"],job["features"],"FI_2010").eval()
+                    adapted = MLPLOB(**model_config(job)).eval()
+                    adapted.load_state_dict(original.state_dict(),strict=True)
+                    self.assertEqual(sum(p.numel() for p in original.parameters()),sum(p.numel() for p in adapted.parameters()))
+                    with torch.inference_mode():
+                        x=torch.randn(1,job["history"],job["features"])
+                        torch.testing.assert_close(original(x),adapted(x),atol=0,rtol=0)
         finally:
             for key,value in saved.items():
                 if value is None:

@@ -9,7 +9,9 @@ class MLPLOB(nn.Module):
                  num_layers: int,
                  seq_size: int,
                  num_features: int,
-                 dataset_type: str
+                 dataset_type: str,
+                 intermediate_expansion: int = 4,
+                 final_expansion: int = 2
                  ) -> None:
         super().__init__()
 
@@ -24,11 +26,11 @@ class MLPLOB(nn.Module):
         self.layers.append(nn.GELU())
         for i in range(num_layers):
             if i != num_layers-1:
-                self.layers.append(MLP(hidden_dim, hidden_dim*4, hidden_dim))
-                self.layers.append(MLP(seq_size, seq_size*4, seq_size))
+                self.layers.append(MLP(hidden_dim, hidden_dim*intermediate_expansion, hidden_dim))
+                self.layers.append(MLP(seq_size, seq_size*intermediate_expansion, seq_size))
             else:
-                self.layers.append(MLP(hidden_dim, hidden_dim*2, hidden_dim//4))
-                self.layers.append(MLP(seq_size, seq_size*2, seq_size//4))
+                self.layers.append(MLP(hidden_dim, hidden_dim*final_expansion, hidden_dim//4))
+                self.layers.append(MLP(seq_size, seq_size*final_expansion, seq_size//4))
 
         total_dim = (hidden_dim//4)*(seq_size//4)
         self.final_layers = nn.ModuleList()

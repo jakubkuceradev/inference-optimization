@@ -7,6 +7,7 @@ import platform
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -25,15 +26,28 @@ def read_json(path):
 def write_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
-    temporary.replace(path)
+    fd, name = tempfile.mkstemp(prefix=path.name+".", suffix=".tmp", dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, "w") as stream:
+            stream.write(json.dumps(value, indent=2, allow_nan=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+        directory = os.open(path.parent, os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def external(path):
     path = Path(path).expanduser().resolve()
     checkout = Path(__file__).resolve().parents[2]
-    checkouts = [p for p in (checkout, *checkout.parents) if (p / ".git").exists()]
+    checkouts = [p for p in (checkout, *checkout.parents)
+                 if (p / ".git").is_file() or (p / ".git/HEAD").is_file()]
     if any(path == root or root in path.parents for root in checkouts):
         raise ValueError("Experiment artifacts must be outside every checkout")
     return path
@@ -56,6 +70,22 @@ def configure(threads=1, cpu=None):
     torch.backends.cudnn.benchmark = False
 
 
+def hardware_identity(device="cpu"):
+    info = {}
+    for line in Path("/proc/cpuinfo").read_text().split("\n\n")[0].splitlines():
+        if ":" in line:
+            key, value = line.split(":", 1)
+            info[key.strip()] = value.strip()
+    result = {"host": platform.node(), "machine": platform.machine(),
+              "cpu_model": info.get("model name"), "cpu_vendor": info.get("vendor_id"),
+              "logical_cpus": os.cpu_count()}
+    if device == "cuda":
+        import torch
+        result["gpu"] = torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
+        result["cuda_runtime"] = torch.version.cuda
+    return result
+
+
 def environment():
     import torch
     versions = {}
@@ -76,6 +106,7 @@ def environment():
         compiler_info = {"argv": compiler_command, "error": str(error)}
     return {
         "python": sys.version, "platform": platform.platform(), "versions": versions,
+        "hardware": {device: hardware_identity(device) for device in ("cpu", "cuda")},
         "cxx_compiler": compiler_info, "torch_build_config": torch.__config__.show(),
         "cpuinfo": Path("/proc/cpuinfo").read_text().split("\n\n")[0],
         "affinity": sorted(os.sched_getaffinity(0)), "threads": torch.get_num_threads(),

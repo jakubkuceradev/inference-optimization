@@ -1,0 +1,499 @@
+{
+  "version": 1,
+  "kind": "verified-cf5",
+  "support": 384,
+  "horizon": 10,
+  "feature_order": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    144
+  ],
+  "label_mapping": {
+    "1": "up:0",
+    "2": "stable:1",
+    "3": "down:2"
+  },
+  "normalization": {
+    "coordinates": "CF5",
+    "fit_days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "description": "Supplied CF5 for training and day6; day7 CF6 vectors converted into CF5 by affine maps estimated solely from matched days1-5. Coordinate and paired day6 gates must pass before fitting."
+  },
+  "segments": {
+    "train": [
+      {
+        "group": 1,
+        "day": 1,
+        "start": 0,
+        "end": 3454,
+        "reference_start": 0
+      },
+      {
+        "group": 1,
+        "day": 2,
+        "start": 3454,
+        "end": 8533,
+        "reference_start": 3454
+      },
+      {
+        "group": 1,
+        "day": 3,
+        "start": 8533,
+        "end": 12436,
+        "reference_start": 8533
+      },
+      {
+        "group": 1,
+        "day": 4,
+        "start": 12436,
+        "end": 15242,
+        "reference_start": 12436
+      },
+      {
+        "group": 1,
+        "day": 5,
+        "start": 15242,
+        "end": 18272,
+        "reference_start": 15242
+      },
+      {
+        "group": 2,
+        "day": 1,
+        "start": 18272,
+        "end": 24590,
+        "reference_start": 23336
+      },
+      {
+        "group": 2,
+        "day": 2,
+        "start": 24590,
+        "end": 30712,
+        "reference_start": 29654
+      },
+      {
+        "group": 2,
+        "day": 3,
+        "start": 30712,
+        "end": 36123,
+        "reference_start": 35776
+      },
+      {
+        "group": 2,
+        "day": 4,
+        "start": 36123,
+        "end": 43115,
+        "reference_start": 41187
+      },
+      {
+        "group": 2,
+        "day": 5,
+        "start": 43115,
+        "end": 49843,
+        "reference_start": 48179
+      },
+      {
+        "group": 3,
+        "day": 1,
+        "start": 49843,
+        "end": 54765,
+        "reference_start": 68210
+      },
+      {
+        "group": 3,
+        "day": 2,
+        "start": 54765,
+        "end": 60730,
+        "reference_start": 73132
+      },
+      {
+        "group": 3,
+        "day": 3,
+        "start": 60730,
+        "end": 64757,
+        "reference_start": 79097
+      },
+      {
+        "group": 3,
+        "day": 4,
+        "start": 64757,
+        "end": 70099,
+        "reference_start": 83124
+      },
+      {
+        "group": 3,
+        "day": 5,
+        "start": 70099,
+        "end": 76045,
+        "reference_start": 88466
+      },
+      {
+        "group": 4,
+        "day": 1,
+        "start": 76045,
+        "end": 86764,
+        "reference_start": 106759
+      },
+      {
+        "group": 4,
+        "day": 2,
+        "start": 86764,
+        "end": 93476,
+        "reference_start": 117478
+      },
+      {
+        "group": 4,
+        "day": 3,
+        "start": 93476,
+        "end": 98662,
+        "reference_start": 124190
+      },
+      {
+        "group": 4,
+        "day": 4,
+        "start": 98662,
+        "end": 109481,
+        "reference_start": 129376
+      },
+      {
+        "group": 4,
+        "day": 5,
+        "start": 109481,
+        "end": 115859,
+        "reference_start": 140195
+      },
+      {
+        "group": 5,
+        "day": 1,
+        "start": 115859,
+        "end": 129958,
+        "reference_start": 161434
+      },
+      {
+        "group": 5,
+        "day": 2,
+        "start": 129958,
+        "end": 144477,
+        "reference_start": 175533
+      },
+      {
+        "group": 5,
+        "day": 3,
+        "start": 144477,
+        "end": 154485,
+        "reference_start": 190052
+      },
+      {
+        "group": 5,
+        "day": 4,
+        "start": 154485,
+        "end": 165549,
+        "reference_start": 200060
+      },
+      {
+        "group": 5,
+        "day": 5,
+        "start": 165549,
+        "end": 178252,
+        "reference_start": 211124
+      }
+    ],
+    "validation": [
+      {
+        "group": 1,
+        "day": 6,
+        "start": 0,
+        "end": 2263,
+        "reference_start": 18272
+      },
+      {
+        "group": 2,
+        "day": 6,
+        "start": 2263,
+        "end": 8506,
+        "reference_start": 54907
+      },
+      {
+        "group": 3,
+        "day": 6,
+        "start": 8506,
+        "end": 14113,
+        "reference_start": 94412
+      },
+      {
+        "group": 4,
+        "day": 6,
+        "start": 14113,
+        "end": 21120,
+        "reference_start": 146573
+      },
+      {
+        "group": 5,
+        "day": 6,
+        "start": 21120,
+        "end": 39152,
+        "reference_start": 223827
+      },
+      {
+        "group": 1,
+        "day": 7,
+        "start": 39152,
+        "end": 41953,
+        "reference_start": 20535
+      },
+      {
+        "group": 2,
+        "day": 7,
+        "start": 41953,
+        "end": 49013,
+        "reference_start": 61150
+      },
+      {
+        "group": 3,
+        "day": 7,
+        "start": 49013,
+        "end": 55753,
+        "reference_start": 100019
+      },
+      {
+        "group": 4,
+        "day": 7,
+        "start": 55753,
+        "end": 63607,
+        "reference_start": 153580
+      },
+      {
+        "group": 5,
+        "day": 7,
+        "start": 63607,
+        "end": 76498,
+        "reference_start": 241859
+      }
+    ]
+  },
+  "files": {
+    "train-raw.npy": "9eba2faf8ce71105295f7cedfb7966bca1c4a87119767a3dc9933afeaa04a003",
+    "train-index.npy": "2929cd55afb87dfba4fc591ecacdc5a588dd64898fb7e59b2bdabdfdf98c8188",
+    "train-targets.npy": "6e699e8e6c8f38f1c2e5c3940f5e276b674b30033667e550b4e44ab76f0256f6",
+    "validation-raw.npy": "57e39bf503ddd37e8dc31e9dd4502992828106965762a8c99ec8d495d117be73",
+    "validation-index.npy": "20c1c930c027a7caca61e91c47a032fbe73d3b5536c0a5df528a31657e8d0c9b",
+    "validation-targets.npy": "4a1343a4e41877c918d8e72463ff67714d6a0636a9868c7ac11bb7df92ed2628"
+  },
+  "counts": {
+    "train": 168427,
+    "validation": 72568
+  },
+  "provenance": {
+    "preparation_sha256": "c4d7adc17240a2c8798e0179126cc73abd0bb2c9ddb3c5c88f57640771ccee54",
+    "plan_sha256": "6e8c611947ce030a853619b8fdf301b46b9f7c7d211c9dc72ca0a0989d243d7c",
+    "text_sha256": {
+      "train5": "15ff48d22fb34d3b03d0c2a13f2d1ca9ceb7b433a1488b58ca19f422027c5b04",
+      "train6": "e8fe967cf6d345cccc635cc5e0e1b952b1f07f19daac96ccf1745e1a9e4909cb",
+      "day6": "12e0a3de8b832c1d0b84b7ae473f77ad0e95fc31d40dadcfc9aeca838b877de4",
+      "day7": "906dbe61f956b25118d7dfde758b12968c30434a533f5bf78000cddb0ab18ff4"
+    },
+    "input_files": {
+      "train_cf5": {
+        "url": "https://www.kaggle.com/api/v1/datasets/download/wzy841127938/fi2010/NoAuction_Zscore_Training%2FTrain_Dst_NoAuction_ZScore_CF_5.txt?datasetVersionNumber=1",
+        "path": "/home/ashen/.local/share/dev/inference-optimization/experiments/baseline-models/catboost-concat5-hpo-5-2-2026-11-19/Train_Dst_NoAuction_ZScore_CF_5.zip",
+        "sha256": "0383e1ee6c4c94eb34bb23e8c22f21208aa0577b930593a01367dae782b32ff4",
+        "members": [
+          {
+            "name": "Train_Dst_NoAuction_ZScore_CF_5.txt",
+            "bytes": 424953066,
+            "crc32": 2893889302
+          }
+        ]
+      },
+      "train_cf6": {
+        "name": "NoAuction_Zscore_Training/Train_Dst_NoAuction_ZScore_CF_6.txt",
+        "url": "https://www.kaggle.com/api/v1/datasets/download/wzy841127938/fi2010/NoAuction_Zscore_Training%2FTrain_Dst_NoAuction_ZScore_CF_6.txt?datasetVersionNumber=1",
+        "path": "/home/ashen/.local/share/dev/inference-optimization/research/fold-normalization-2026-11-19/Train_Dst_NoAuction_ZScore_CF_6.zip",
+        "bytes": 38087624,
+        "sha256": "956e9aa43205fbb7d7b6d598aff21f2cd258769c62045422646f3a506951a04f",
+        "members": [
+          {
+            "name": "Train_Dst_NoAuction_ZScore_CF_6.txt",
+            "bytes": 518291434,
+            "crc32": 2953873232
+          }
+        ]
+      },
+      "day6_cf5": {
+        "name": "NoAuction_Zscore_Testing/Test_Dst_NoAuction_ZScore_CF_5.txt",
+        "url": "https://www.kaggle.com/api/v1/datasets/download/wzy841127938/fi2010/NoAuction_Zscore_Testing%2FTest_Dst_NoAuction_ZScore_CF_5.txt?datasetVersionNumber=1",
+        "path": "/home/ashen/.local/share/dev/inference-optimization/research/fold-normalization-2026-11-19/Test_Dst_NoAuction_ZScore_CF_5.zip",
+        "bytes": 6683717,
+        "sha256": "9739e13aeb5dcb4de968f7b4fd6fd0fd80a15d13c205b61fae53d6064b3cd2ef",
+        "members": [
+          {
+            "name": "Test_Dst_NoAuction_ZScore_CF_5.txt",
+            "bytes": 93338666,
+            "crc32": 459702968
+          }
+        ]
+      },
+      "day7_cf6": {
+        "name": "NoAuction_Zscore_Testing/Test_Dst_NoAuction_ZScore_CF_6.txt",
+        "url": "https://www.kaggle.com/api/v1/datasets/download/wzy841127938/fi2010/NoAuction_Zscore_Testing%2FTest_Dst_NoAuction_ZScore_CF_6.txt?datasetVersionNumber=1",
+        "path": "/home/ashen/.local/share/dev/inference-optimization/research/fold-normalization-2026-11-19/Test_Dst_NoAuction_ZScore_CF_6.zip",
+        "bytes": 6463665,
+        "sha256": "f967b4280622b0b7168caa648959075a54c6b2605e22e1889a4d67eb072d2441",
+        "members": [
+          {
+            "name": "Test_Dst_NoAuction_ZScore_CF_6.txt",
+            "bytes": 89033162,
+            "crc32": 2215357486
+          }
+        ]
+      }
+    },
+    "printed_paper_learning_rate": 0.003,
+    "upstream_revision": "f1c0af4d81067978914361766db0457a7d8b6a46"
+  }
+}

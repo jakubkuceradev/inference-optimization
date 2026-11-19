@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "name": "mlplob-medium",
+  "kind": "screen",
+  "support": 384,
+  "jobs": [
+    {
+      "id": "h384-w144-d3-f144-standard-s42",
+      "history": 384,
+      "width": 144,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h256-w128-d3-f144-standard-s42",
+      "history": 256,
+      "width": 128,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    },
+    {
+      "id": "h128-w128-d3-f144-standard-s42",
+      "history": 128,
+      "width": 128,
+      "depth": 3,
+      "features": 144,
+      "expansion": "standard",
+      "seed": 42
+    }
+  ],
+  "recipe": {
+    "optimizer": "Adam",
+    "learning_rate": 0.0003,
+    "epochs": 20,
+    "patience": 5,
+    "minimum_epochs": 8,
+    "precision": "FP32",
+    "tf32": false,
+    "weights": "raw",
+    "selection": "equal-day-macro-f1-earliest-tie",
+    "horizon": 10
+  },
+  "timing": {
+    "warmups": 200,
+    "repeats": 3,
+    "calls": 10000,
+    "seed": 42
+  },
+  "devices": [
+    "cpu",
+    "cuda"
+  ]
+}

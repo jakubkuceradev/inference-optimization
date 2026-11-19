@@ -384,3 +384,5 @@ a tiny synthetic train/select/reload/evaluate flow. Exact upstream-forward
 comparison runs when the pinned local snapshot is installed; otherwise it
 explicitly skips. Synthetic tests verify tooling, not FI-2010 quality. The initial
 repository had no configured CI.
+
+The durable development-only MLPLOB sweep is documented in [STUDY.md](STUDY.md).
