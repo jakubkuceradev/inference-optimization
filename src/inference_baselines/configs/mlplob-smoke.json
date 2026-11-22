@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "name": "mlplob-smoke",
   "kind": "smoke",
   "support": 384,
@@ -17,14 +17,26 @@
   "recipe": {
     "optimizer": "Adam",
     "learning_rate": 0.0003,
-    "epochs": 20,
+    "epochs": null,
     "patience": 5,
     "minimum_epochs": 8,
     "precision": "FP32",
     "tf32": false,
     "weights": "raw",
-    "selection": "equal-day-macro-f1-earliest-tie",
-    "horizon": 10
+    "selection": "minimum-validation-cross-entropy-earliest-tie",
+    "horizon": 10,
+    "early_stopping": "validation-loss",
+    "scheduler": {
+      "name": "ReduceLROnPlateau",
+      "mode": "min",
+      "factor": 0.5,
+      "patience": 2,
+      "threshold": 0.0,
+      "threshold_mode": "abs",
+      "cooldown": 0,
+      "min_lr": 3e-06,
+      "eps": 1e-08
+    }
   },
   "timing": {
     "warmups": 2,

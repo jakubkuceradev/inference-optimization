@@ -17,6 +17,10 @@ def report(study_root, output, plots=False):
         if training.get("binding",job["binding"])!=job["binding"]: raise ValueError("Changed training binding")
         selected=read_json(directory/"selected.json") if (directory/"selected.json").exists() else None
         if selected and digest(directory/"selected.pt")!=selected["sha256"]: raise ValueError("Changed selected checkpoint")
+        if selected and "best_f1" in selected:
+            alternate=selected["best_f1"]
+            if alternate["file"] not in ("selected.pt","best-f1.pt") or digest(directory/alternate["file"])!=alternate["sha256"]:
+                raise ValueError("Changed best-F1 checkpoint")
         for device in frozen["plan"]["devices"]:
             root=directory/device
             ev=read_json(root/"evaluation.json") if (root/"evaluation.json").exists() else {"status":"unmeasured"}
@@ -40,6 +44,9 @@ def report(study_root, output, plots=False):
                     unique_parameters=job["unique_parameters"],device=device,runtime=bench.get("runtime",ev.get("runtime",{})).get("runtime","unmeasured"),hardware=hardware,
                     boundary=boundary,kind=frozen["plan"]["kind"],training_status=training["status"],evaluation_status=ev["status"],benchmark_status=bench["status"],
                     numerical_status=bench.get("numerical_status",ev.get("numerical_status","unmeasured")),
+                    selection=job["binding"]["recipe"]["selection"],selected_epoch=selected["epoch"] if selected else None,
+                    selected_validation_loss=selected.get("validation_loss") if selected else None,
+                    best_f1_epoch=selected.get("best_f1",{}).get("epoch") if selected else None,
                     equal_day_macro_f1=quality["equal_day_macro_f1"] if quality else None,
                     median_repeat_p50_us=summary.get("median_repeat_p50_us"),worst_repeat_p99_us=summary.get("worst_repeat_p99_us"),
                     checkpoint_sha256=selected["sha256"] if selected else None,verified_frontier=False))

@@ -1,4 +1,5 @@
 """Actual adapters; skipped boundaries are never claimed as integrated."""
+import copy
 import os
 from pathlib import Path
 import tempfile
@@ -14,7 +15,7 @@ from inference_baselines.study.plan import load
 from inference_baselines.study.preflight import preflight
 from inference_baselines.study.report import report
 from inference_baselines.study.store import freeze,job_path
-from inference_baselines.study.training import fit,selected
+from inference_baselines.study.training import fit,selected,load_bundle
 
 CONFIG=Path(__file__).parents[1]/'src/inference_baselines/configs/mlplob-smoke.json'
 
@@ -33,8 +34,10 @@ class StudyIntegration(unittest.TestCase):
         evidence=preflight(plan,self.root/'data',self.root/'preflight','cpu',5)
         self.frozen=freeze(plan,self.root/'data',evidence,dict(batch_size=8,batch_exceptions={},run_seconds=60,campaign_seconds=300,artifact_store=str(self.root/'store'),training_device='cpu'),self.root/'study')
         self.job=self.frozen['jobs'][0]
-        result=fit(self.frozen,self.job,'cpu')
-        self.assertIn(result['status'],('completed','early-stopped'))
+        # Runtime smoke needs a real fitted checkpoint, not an unbounded test of
+        # convergence on synthetic labels. Stopping-policy tests cover that rule.
+        result=fit(self.frozen,self.job,'cpu',stop_after=2)
+        self.assertEqual(result['status'],'interrupted')
 
     @unittest.skipUnless(os.environ.get('ORT_INCLUDE_DIR'),'Official ORT headers not configured')
     def test_native_validation_actual_timed_outputs_and_report(self):
@@ -66,6 +69,33 @@ class StudyIntegration(unittest.TestCase):
         bench=benchmark(self.frozen,self.job,'cuda')
         self.assertEqual(bench['status'],'completed')
         self.assertEqual(len(bench['records']),4)
+
+    @unittest.skipUnless(torch.cuda.is_available(),'Actual CUDA unavailable; training resume unverified')
+    def test_cuda_scheduler_optimizer_and_rng_resume(self):
+        from unittest.mock import patch
+        from inference_baselines.study.training import quality as actual_quality
+        evidence=preflight(self.frozen['plan'],self.root/'data',self.root/'cuda-preflight','cuda',5)
+        settings=dict(self.frozen['execution'],training_device='cuda',artifact_store=str(self.root/'cuda-store'))
+        frozen=freeze(self.frozen['plan'],self.root/'data',evidence,settings,self.root/'cuda-study')
+        job=frozen['jobs'][0]
+        def metrics(targets,logits,ids):
+            result=actual_quality(targets,logits,ids)
+            result['equal_day_macro_f1']=.5;result['pooled']['log_loss']=.7
+            return result
+        with patch('inference_baselines.study.training.quality',side_effect=metrics):
+            fit(frozen,job,'cuda',stop_after=3)
+            fit(frozen,job,'cuda',resume=True,stop_after=4)
+            fresh=copy.deepcopy(frozen);fresh['execution']['artifact_store']=str(self.root/'cuda-fresh')
+            fit(fresh,job,'cuda',stop_after=4)
+        resumed=load_bundle(job_path(frozen,job));straight=load_bundle(job_path(fresh,job))
+        self.assertAlmostEqual(resumed['optimizer']['param_groups'][0]['lr'],.00015)
+        self.assertEqual(straight['scheduler'],resumed['scheduler'])
+        self.assertEqual(straight['patience'],resumed['patience'])
+        self.assertEqual(straight['best_validation_loss_epoch'],resumed['best_validation_loss_epoch'])
+        for key in straight['current']:
+            torch.testing.assert_close(straight['current'][key],resumed['current'][key],rtol=0,atol=0)
+        for a,b in zip(straight['cuda_rng'],resumed['cuda_rng'],strict=True):
+            torch.testing.assert_close(a,b,rtol=0,atol=0)
 
     def test_oracle_is_published_once_and_reused(self):
         from unittest.mock import patch

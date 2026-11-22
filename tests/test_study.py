@@ -14,10 +14,10 @@ import torch
 from inference_baselines.common import digest, read_json, write_json
 from inference_baselines.model import MLPLOB
 from inference_baselines.study.data import Development, synthetic
-from inference_baselines.study.plan import compose, describe, load, model_config, validate
+from inference_baselines.study.plan import LEGACY_RECIPE, DUAL_METRIC_RECIPE, compose, describe, load, model_config, validate
 from inference_baselines.study.preflight import preflight
 from inference_baselines.study.store import activity, freeze, job_path, provenance
-from inference_baselines.study.training import fit, load_bundle
+from inference_baselines.study.training import fit, load_bundle, selected
 
 CONFIGS=Path(__file__).parents[1]/'src/inference_baselines/configs'
 
@@ -34,9 +34,13 @@ class StudyTests(unittest.TestCase):
         torch.set_num_threads(1)
         torch.use_deterministic_algorithms(True)
 
-    def setup_study(self,root):
+    def setup_study(self,root,legacy=False,version=3):
         synthetic(root/'data')
         plan=load(CONFIGS/'mlplob-smoke.json')
+        if legacy:
+            plan.update(version=1,recipe=copy.deepcopy(LEGACY_RECIPE))
+        elif version == 2:
+            plan.update(version=2,recipe=copy.deepcopy(DUAL_METRIC_RECIPE))
         evidence=preflight(plan,root/'data',root/'preflight','cpu',seconds=5)
         settings=dict(batch_size=8,batch_exceptions={},run_seconds=60,campaign_seconds=300,artifact_store=str(root/'store'),training_device='cpu')
         frozen=freeze(plan,root/'data',evidence,settings,root/'study')
@@ -106,8 +110,13 @@ class StudyTests(unittest.TestCase):
                 torch.testing.assert_close(straight['current'][k],resumed['current'][k],rtol=0,atol=0)
             self.assertEqual(straight['best_epoch'],resumed['best_epoch'])
             self.assertEqual(straight['patience'],resumed['patience'])
+            self.assertEqual(straight['best_validation_loss'],resumed['best_validation_loss'])
+            self.assertEqual(straight['best_validation_loss_epoch'],resumed['best_validation_loss_epoch'])
+            self.assertEqual(straight['scheduler'],resumed['scheduler'])
             for a,b in zip(straight['history'],resumed['history']):
                 self.assertEqual(a['validation'],b['validation']); self.assertEqual(a['train_loss'],b['train_loss'])
+                for key in ('f1_improved','validation_loss_improved','stopping_progress','stopping_patience'):
+                    self.assertEqual(a[key],b[key])
             interrupted=copy.deepcopy(frozen); interrupted['execution']['artifact_store']=str(root/'fault')
             def fault(phase,epoch):
                 if phase=='before-publication' and epoch==3: raise RuntimeError('injected crash')
@@ -186,9 +195,10 @@ for task in Path('/proc/self/task').iterdir():
         def constant_quality(targets,logits,ids):
             result=actual_quality(targets,logits,ids)
             result['equal_day_macro_f1']=.5
+            result['pooled']['log_loss']=.7
             return result
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp); frozen,job=self.setup_study(root)
+            root=Path(tmp); frozen,job=self.setup_study(root,version=2)
             with patch('inference_baselines.study.training.quality',side_effect=constant_quality):
                 stopped=fit(frozen,job,'cpu')
             state=load_bundle(job_path(frozen,job))
@@ -196,6 +206,189 @@ for task in Path('/proc/self/task').iterdir():
             self.assertEqual(state['epoch'],8)
             self.assertEqual(state['best_epoch'],1)
             self.assertEqual(state['patience'],7)
+
+    def scripted_quality(self, f1, loss, start=0):
+        from inference_baselines.study.training import quality as actual_quality
+        count=start
+        def metrics(targets,logits,ids):
+            nonlocal count
+            count+=1
+            result=actual_quality(targets,logits,ids)
+            result['equal_day_macro_f1']=f1(count)
+            result['pooled']['log_loss']=loss(count)
+            return result
+        return metrics
+
+    def test_loss_progress_beyond_twenty_then_plateau_resume_is_exact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); frozen,job=self.setup_study(root,version=2)
+            schedule=lambda: self.scripted_quality(lambda e:.5,lambda e:2.-.01*min(e,22))
+            with patch('inference_baselines.study.training.quality',side_effect=schedule()):
+                interrupted=fit(frozen,job,'cpu',stop_after=22)
+                state=load_bundle(job_path(frozen,job))
+                self.assertEqual(interrupted['status'],'interrupted')
+                self.assertEqual(state['epoch'],22)
+                self.assertEqual(state['best_epoch'],1)
+                self.assertEqual(state['best_validation_loss_epoch'],22)
+                self.assertEqual(state['patience'],0)
+                first=torch.load(job_path(frozen,job)/'epoch-001.pt',map_location='cpu',weights_only=False)
+                for key in first['current']:
+                    torch.testing.assert_close(first['current'][key],state['best_weights'][key],rtol=0,atol=0)
+                fit(frozen,job,'cpu',resume=True,stop_after=25)
+                self.assertEqual(load_bundle(job_path(frozen,job))['patience'],3)
+                stopped=fit(frozen,job,'cpu',resume=True)
+            resumed=load_bundle(job_path(frozen,job))
+            self.assertEqual(stopped['status'],'early-stopped')
+            self.assertEqual(resumed['epoch'],27)
+            self.assertEqual(resumed['patience'],5)
+            self.assertEqual(resumed['best_epoch'],1)
+            fresh=copy.deepcopy(frozen);fresh['execution']['artifact_store']=str(root/'fresh')
+            with patch('inference_baselines.study.training.quality',side_effect=schedule()):
+                fit(fresh,job,'cpu')
+            straight=load_bundle(job_path(fresh,job))
+            self.assertEqual(straight['epoch'],resumed['epoch'])
+            self.assertEqual(straight['patience'],resumed['patience'])
+            self.assertEqual(straight['best_validation_loss'],resumed['best_validation_loss'])
+            self.assertEqual(straight['best_validation_loss_epoch'],resumed['best_validation_loss_epoch'])
+            for key in straight['current']:
+                torch.testing.assert_close(straight['current'][key],resumed['current'][key],rtol=0,atol=0)
+            for a,b in zip(straight['history'],resumed['history'],strict=True):
+                for key in ('validation','train_loss','stopping_progress','stopping_patience'):
+                    self.assertEqual(a[key],b[key])
+
+    def test_f1_progress_continues_despite_worsening_loss(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);frozen,job=self.setup_study(root,version=2)
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(lambda e:.5+.001*e,lambda e:.5+.01*e)):
+                result=fit(frozen,job,'cpu',stop_after=21)
+            state=load_bundle(job_path(frozen,job))
+            self.assertEqual(result['status'],'interrupted')
+            self.assertEqual(state['epoch'],21)
+            self.assertEqual(state['best_epoch'],21)
+            self.assertEqual(state['best_validation_loss_epoch'],1)
+            self.assertEqual(state['patience'],0)
+
+    def test_loss_oscillation_without_new_record_does_not_reset_patience(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);frozen,job=self.setup_study(root,version=2)
+            loss=lambda e:.5 if e==1 else .7 if e%2 else .8
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(lambda e:.5,loss)):
+                result=fit(frozen,job,'cpu',stop_after=12)
+            state=load_bundle(job_path(frozen,job))
+            self.assertEqual(result['status'],'early-stopped')
+            self.assertEqual(state['epoch'],8)
+            self.assertEqual(state['best_validation_loss_epoch'],1)
+
+    def test_legacy_recipe_retains_f1_only_stopping_and_epoch_cap(self):
+        for improving_f1 in (False,True):
+            with self.subTest(improving_f1=improving_f1),tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);frozen,job=self.setup_study(root,legacy=True)
+                f1=lambda e:.5+.001*e if improving_f1 else .5
+                with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,lambda e:2.-.01*e)):
+                    result=fit(frozen,job,'cpu')
+                state=load_bundle(job_path(frozen,job))
+                self.assertEqual(state['epoch'],20 if improving_f1 else 8)
+                self.assertEqual(result['status'],'completed' if improving_f1 else 'early-stopped')
+
+    def test_scheduler_resume_at_reduction_and_distinct_primary_f1_checkpoints(self):
+        f1=lambda e:.5+.001*e
+        loss=lambda e:1.-.1*min(e,3)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);frozen,job=self.setup_study(root)
+            directory=job_path(frozen,job)
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,loss)):
+                fit(frozen,job,'cpu',stop_after=5)
+            before=load_bundle(directory)
+            self.assertEqual(before['scheduler']['num_bad_epochs'],2)
+            def fail(phase,epoch):
+                if phase=='before-publication' and epoch==6:raise RuntimeError('interrupted LR publication')
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,loss,start=5)):
+                with self.assertRaises(RuntimeError):fit(frozen,job,'cpu',resume=True,fault=fail)
+            self.assertEqual(load_bundle(directory)['epoch'],5)
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,loss,start=5)):
+                fit(frozen,job,'cpu',resume=True,stop_after=6)
+            after=load_bundle(directory)
+            self.assertAlmostEqual(after['optimizer']['param_groups'][0]['lr'],.00015)
+            self.assertEqual(after['patience'],0)
+            self.assertTrue(after['history'][-1]['lr_reduced'])
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,loss,start=6)):
+                result=fit(frozen,job,'cpu',resume=True)
+            resumed=load_bundle(directory)
+            self.assertEqual(result['status'],'early-stopped')
+            self.assertEqual(resumed['epoch'],29)
+            self.assertEqual(resumed['patience'],5)
+            self.assertAlmostEqual(resumed['history'][-1]['next_learning_rate'],.000003)
+            self.assertEqual([r['epoch'] for r in resumed['history'] if r['lr_reduced']],[6,9,12,15,18,21,24])
+            _,metadata=selected(directory,job)
+            self.assertEqual(metadata['epoch'],3)
+            self.assertEqual(metadata['best_f1']['epoch'],29)
+            self.assertEqual(metadata['best_f1']['file'],'best-f1.pt')
+            primary=torch.load(directory/'selected.pt',map_location='cpu',weights_only=True)
+            alternate=torch.load(directory/'best-f1.pt',map_location='cpu',weights_only=True)
+            for key in primary:
+                torch.testing.assert_close(primary[key],resumed['best_loss_weights'][key],rtol=0,atol=0)
+                torch.testing.assert_close(alternate[key],resumed['best_weights'][key],rtol=0,atol=0)
+            fresh=copy.deepcopy(frozen);fresh['execution']['artifact_store']=str(root/'fresh')
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,loss)):
+                fit(fresh,job,'cpu')
+            straight=load_bundle(job_path(fresh,job))
+            for key in ('epoch','patience','scheduler','best','best_epoch','best_validation_loss','best_validation_loss_epoch'):
+                self.assertEqual(straight[key],resumed[key])
+            for a,b in zip(straight['history'],resumed['history'],strict=True):
+                for key in ('train_loss','validation','learning_rate','next_learning_rate','lr_reduced','stopping_progress','stopping_patience'):
+                    self.assertEqual(a[key],b[key])
+            for key in primary:
+                for field in ('current','best_weights','best_loss_weights'):
+                    torch.testing.assert_close(straight[field][key],resumed[field][key],rtol=0,atol=0)
+            # Report validates the retained alternative as well as primary weights.
+            from inference_baselines.study.report import report
+            report(root/'study',root/'report')
+            (directory/'best-f1.pt').write_bytes(b'corrupted')
+            with self.assertRaises(ValueError):selected(directory,job)
+            with self.assertRaises(ValueError):report(root/'study',root/'bad-report')
+
+    def test_primary_loss_progress_continues_past_twenty_with_flat_f1(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);frozen,job=self.setup_study(root)
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(lambda e:.5,lambda e:2.-.01*e)):
+                result=fit(frozen,job,'cpu',stop_after=22)
+            state=load_bundle(job_path(frozen,job))
+            self.assertEqual(result['status'],'interrupted')
+            self.assertEqual(state['epoch'],22)
+            self.assertEqual(state['patience'],0)
+            self.assertEqual(state['best_validation_loss_epoch'],22)
+            self.assertEqual(state['best_epoch'],1)
+            self.assertTrue(all(not r['lr_reduced'] for r in state['history']))
+            self.assertEqual(selected(job_path(frozen,job),job)[1]['epoch'],22)
+
+    def test_primary_and_best_f1_share_file_when_epochs_match(self):
+        f1=lambda e:.6 if e==1 else .5 if e==2 else .7
+        loss=lambda e:1.-.1*e
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);frozen,job=self.setup_study(root)
+            directory=job_path(frozen,job)
+            with patch('inference_baselines.study.training.quality',side_effect=self.scripted_quality(f1,loss)):
+                fit(frozen,job,'cpu',stop_after=2)
+                self.assertTrue((directory/'best-f1.pt').exists())
+                fit(frozen,job,'cpu',resume=True,stop_after=3)
+            _,metadata=selected(directory,job)
+            self.assertEqual(metadata['epoch'],3)
+            self.assertEqual(metadata['best_f1']['epoch'],3)
+            self.assertEqual(metadata['best_f1']['file'],'selected.pt')
+            self.assertFalse((directory/'best-f1.pt').exists())
+
+    def test_recipe_versions_are_explicit_and_have_distinct_training_identities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);frozen,job=self.setup_study(root)
+            legacy=copy.deepcopy(frozen['plan']);legacy.update(version=1,recipe=copy.deepcopy(LEGACY_RECIPE))
+            validate(legacy)
+            evidence=preflight(legacy,root/'data',root/'legacy-preflight','cpu',5)
+            old=freeze(legacy,root/'data',evidence,frozen['execution'],root/'legacy-study')
+            self.assertNotEqual(old['jobs'][0]['key'],job['key'])
+            self.assertIsNone(job['binding']['recipe']['epochs'])
+            bad=copy.deepcopy(legacy);bad['version']=2
+            with self.assertRaises(ValueError):validate(bad)
+            with self.assertRaises(ValueError):compose([legacy,frozen['plan']])
 
     def test_freeze_rejects_stale_preflight_and_batch(self):
         with tempfile.TemporaryDirectory() as tmp:

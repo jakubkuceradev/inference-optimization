@@ -64,12 +64,43 @@ inference-study train --study /runs/limited --device cuda --python /env/cuda/bin
 inference-study train --study /runs/limited --device cuda --resume --python /env/cuda/bin/python
 ```
 
-Adam uses lr0.0003, uniform cross-entropy, raw weights, deterministic FP32 and
-TF32 off. The paper's printed0.003 discrepancy remains in provenance. Training
-caps at20 epochs and stops after five non-improvements once eight epochs finish.
-Highest equal-day mean day6/day7 macro-F1 selects weights; exact ties keep the
-earlier epoch and increment patience. Reports also retain cross-entropy, pooled
-accuracy, per-class and per-day metrics. GPU data transfer is batched and recorded.
+Adam starts at lr0.0003 with uniform cross-entropy, raw weights, deterministic
+FP32 and TF32 off. The paper's printed0.003 discrepancy remains in provenance.
+New version3 plans have no epoch-count cap. ReduceLROnPlateau monitors pooled
+validation cross-entropy in `min` mode, halves LR after three consecutive epochs
+without a strict new loss minimum (PyTorch `patience:2`), and stops reducing at
+lr0.000003. The remaining explicit scheduler settings are threshold0 (absolute),
+cooldown0 and eps1e-8. The same policy applies to all models.
+
+After at least eight epochs, early stopping requires five consecutive epochs
+with neither a new minimum validation loss nor an actual LR reduction. A lower
+LR resets stopping patience so the model can improve at that rate; F1 changes
+do not reset it. At the LR floor, attempted reductions do not reset patience.
+Exact loss ties retain the earlier record. Repeated reductions can extend a
+plateau until the LR floor is reached, followed by five further stagnant epochs.
+Resource limits still produce `budget-stopped`, not a convergence claim.
+
+The earliest minimum-loss epoch selects primary raw weights (`selected.pt`).
+When maximum equal-day validation macro-F1 occurs at another epoch, those raw
+weights are retained as `best-f1.pt`; otherwise metadata references `selected.pt`
+without a duplicate file. `selected.json` records selection criterion, both
+checkpoints' epochs, losses, F1 and hashes. Its legacy `score` field remains the
+F1 of the checkpoint it describes; `validation_loss` is the primary selection
+value in version3. Evaluation/benchmark/report use the primary checkpoint by
+default; the F1 alternative is diagnostic, outside that latency frontier.
+
+Each complete epoch bundle saves optimizer and scheduler state, current/best-loss/
+best-F1 weights, RNG/shuffle state, stopping patience, history and elapsed budgets.
+History records both the LR used for fitting and the next epoch's LR, actual
+reduction flags, metric improvements and timings. Resume at an LR reduction
+restores exactly the same scheduler counters, optimizer LR and stopping state.
+
+Version1 preserves the historical20-epoch/F1-only rule used by the completed
+first44-model screen. Version2 preserves uncapped dual-metric stopping with F1
+selection and no scheduler. Shipped plans now use version3 and distinct training
+identities. Resume requires matching recipe/data/code bindings. Re-estimate and
+explicitly freeze budgets for new runs; the earlier20-epoch estimate is not a
+convergence estimate. Updating plans does not launch a replacement campaign.
 
 Complete epoch bundles contain current/best tensors, optimizer, RNG/shuffle state,
 selection/patience, steps, repairs, metrics and elapsed time. A flushed/fsynced file

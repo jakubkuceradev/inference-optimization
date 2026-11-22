@@ -51,14 +51,50 @@ def load_bundle(directory):
     return torch.load(path,map_location="cpu",weights_only=False)
 
 
+def primary_epoch(bundle):
+    if bundle["binding"]["recipe"]["selection"] == "minimum-validation-cross-entropy-earliest-tie":
+        return bundle["best_validation_loss_epoch"]
+    return bundle["best_epoch"]
+
+
+def publish_selected(directory, bundle):
+    """Publish primary weights and link the diagnostic F1 checkpoint, if needed."""
+    loss_selected = bundle["binding"]["recipe"]["selection"] == "minimum-validation-cross-entropy-earliest-tie"
+    epoch = primary_epoch(bundle)
+    def metadata(epoch, file, selection):
+        record = next(r for r in bundle["history"] if r["epoch"] == epoch)
+        return dict(epoch=epoch,score=record["validation"]["equal_day_macro_f1"],
+                    equal_day_macro_f1=record["validation"]["equal_day_macro_f1"],
+                    validation_loss=record["validation"]["pooled"]["log_loss"],
+                    sha256=digest(directory/file),file=file,weights="raw",selection=selection)
+    atomic_torch(directory/"selected.pt",bundle["best_loss_weights"] if loss_selected else bundle["best_weights"])
+    selected_metadata = metadata(epoch,"selected.pt",bundle["binding"]["recipe"]["selection"])
+    if loss_selected:
+        alternate = "selected.pt"
+        if bundle["best_epoch"] != epoch:
+            alternate = "best-f1.pt"
+            atomic_torch(directory/alternate,bundle["best_weights"])
+        else:
+            (directory/"best-f1.pt").unlink(missing_ok=True)
+        selected_metadata["best_f1"] = metadata(bundle["best_epoch"],alternate,"equal-day-macro-f1-earliest-tie")
+    write_json(directory/"selected.json",selected_metadata)
+
+
 def selected(directory, job):
     directory = Path(directory)
     bundle = load_bundle(directory)
     if bundle["binding"] != job["binding"]:
         raise ValueError("Checkpoint binding mismatch")
     checkpoint = read_json(directory/"selected.json")
-    if digest(directory/"selected.pt") != checkpoint["sha256"] or checkpoint["epoch"] != bundle["best_epoch"]:
+    if digest(directory/"selected.pt") != checkpoint["sha256"] or checkpoint["epoch"] != primary_epoch(bundle):
         raise ValueError("Selected checkpoint hash/epoch mismatch")
+    if job["binding"]["recipe"]["selection"] == "minimum-validation-cross-entropy-earliest-tie":
+        alternate = checkpoint.get("best_f1",{})
+        expected_file = "selected.pt" if bundle["best_epoch"] == checkpoint["epoch"] else "best-f1.pt"
+        if (checkpoint.get("selection") != job["binding"]["recipe"]["selection"] or
+            alternate.get("epoch") != bundle["best_epoch"] or alternate.get("file") != expected_file or
+            digest(directory/expected_file) != alternate.get("sha256")):
+            raise ValueError("Best-F1 checkpoint binding/hash mismatch")
     model = MLPLOB(**model_config(job["config"]))
     model.load_state_dict(torch.load(directory/"selected.pt",map_location="cpu",weights_only=True),strict=True)
     model.eval()
@@ -91,12 +127,20 @@ def fit(study, job, device, resume=False, stop_after=None, campaign_remaining=No
         if device == "cuda": torch.cuda.manual_seed_all(config["seed"])
         generator = torch.Generator().manual_seed(config["seed"])
         model = MLPLOB(**model_config(config)).to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=.0003, foreach=False, fused=False)
-        state = dict(binding=job["binding"],epoch=0,best=-1.,best_epoch=None,patience=0,history=[],elapsed=0.,optimizer_steps=0,bin_repairs=0)
+        recipe = job["binding"]["recipe"]
+        loss_aware = recipe.get("early_stopping") == "f1-or-validation-loss"
+        loss_selected = recipe["selection"] == "minimum-validation-cross-entropy-earliest-tie"
+        optimizer = torch.optim.Adam(model.parameters(), lr=recipe["learning_rate"], foreach=False, fused=False)
+        scheduler_config = recipe.get("scheduler")
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,**{k:v for k,v in scheduler_config.items() if k != "name"}) if scheduler_config else None
+        state = dict(binding=job["binding"],epoch=0,best=-1.,best_epoch=None,
+                     best_validation_loss=None,best_validation_loss_epoch=None,
+                     patience=0,history=[],elapsed=0.,optimizer_steps=0,bin_repairs=0)
         if (directory/"epoch.json").exists():
             state = load_bundle(directory)
             if state["binding"] != job["binding"]: raise ValueError("Resume binding mismatch")
             model.load_state_dict(state["current"]); optimizer.load_state_dict(state["optimizer"])
+            if scheduler is not None: scheduler.load_state_dict(state["scheduler"])
             torch.set_rng_state(state["cpu_rng"]); generator.set_state(state["shuffle_rng"])
             if device == "cuda": torch.cuda.set_rng_state_all(state["cuda_rng"])
             model.norm_layer.repairs = state["bin_repairs"]
@@ -110,17 +154,22 @@ def fit(study, job, device, resume=False, stop_after=None, campaign_remaining=No
         def spent(): return elapsed+time.perf_counter()-started
         def status(name, **extra):
             result = dict(status=name,binding=job["binding"],elapsed=spent(),epochs=published_epoch,
+                          stopping=dict(criterion=recipe.get("early_stopping", "f1"),
+                                        epoch_limit=recipe["epochs"],patience=state["patience"],
+                                        learning_rate=optimizer.param_groups[0]["lr"]),
                           started_unix=time.time(),environment=environment(),unique_parameters=sum(p.numel() for p in model.parameters()),transfer_policy="batched raw windows, explicit host/device transfer",**extra)
             write_json(status_path,result)
             return result
         status("running")
         reason = "completed"
         try:
-            for epoch in range(state["epoch"]+1,21):
-                if state["epoch"] >= 8 and state["patience"] >= 5:
+            while recipe["epochs"] is None or state["epoch"] < recipe["epochs"]:
+                epoch = state["epoch"]+1
+                if state["epoch"] >= recipe["minimum_epochs"] and state["patience"] >= recipe["patience"]:
                     reason = "early-stopped"; break
                 if spent() >= limit:
                     reason = "budget-stopped"; break
+                learning_rate = optimizer.param_groups[0]["lr"]
                 model.train(); order = torch.randperm(len(corpus.arrays["train"]["index"]),generator=generator).numpy()
                 training_start = time.perf_counter(); total = 0.
                 batch = job["binding"]["batch"]
@@ -142,13 +191,29 @@ def fit(study, job, device, resume=False, stop_after=None, campaign_remaining=No
                 metrics = quality(corpus.arrays["validation"]["targets"],logits,corpus.arrays["validation"]["index"])
                 validation_seconds = time.perf_counter()-val_start
                 value = metrics["equal_day_macro_f1"]
-                if value > state["best"]:
-                    state.update(best=value,best_epoch=epoch,patience=0,
+                validation_loss = metrics["pooled"]["log_loss"]
+                f1_improved = value > state["best"]
+                previous_loss = state.get("best_validation_loss")
+                loss_improved = previous_loss is None or validation_loss < previous_loss
+                if f1_improved:
+                    state.update(best=value,best_epoch=epoch,
                                  best_weights={k:v.detach().cpu().clone() for k,v in model.state_dict().items()})
-                else: state["patience"] += 1
+                if loss_improved:
+                    state.update(best_validation_loss=validation_loss,best_validation_loss_epoch=epoch)
+                    if loss_selected:
+                        state["best_loss_weights"] = {k:v.detach().cpu().clone() for k,v in model.state_dict().items()}
+                if scheduler is not None: scheduler.step(validation_loss)
+                next_learning_rate = optimizer.param_groups[0]["lr"]
+                lr_reduced = next_learning_rate < learning_rate
+                progress = loss_improved if loss_selected else f1_improved or (loss_aware and loss_improved)
+                state["patience"] = 0 if progress or lr_reduced else state["patience"]+1
                 state["history"].append(dict(epoch=epoch,train_loss=total/len(order),validation=metrics,
+                                             f1_improved=f1_improved,validation_loss_improved=loss_improved,
+                                             stopping_progress=progress,stopping_patience=state["patience"],
+                                             learning_rate=learning_rate,next_learning_rate=next_learning_rate,lr_reduced=lr_reduced,
                                              fitting_seconds=fit_seconds,validation_seconds=validation_seconds))
                 state.update(epoch=epoch,elapsed=spent(),current={k:v.detach().cpu().clone() for k,v in model.state_dict().items()},
+                             scheduler=copy.deepcopy(scheduler.state_dict()) if scheduler is not None else None,
                              optimizer=copy.deepcopy(optimizer.state_dict()),cpu_rng=torch.get_rng_state(),
                              cuda_rng=torch.cuda.get_rng_state_all() if device=="cuda" else [],shuffle_rng=generator.get_state(),
                              bin_repairs=model.norm_layer.repairs)
@@ -159,15 +224,14 @@ def fit(study, job, device, resume=False, stop_after=None, campaign_remaining=No
                 published_epoch = epoch
                 if fault: fault("after-publication",epoch)
                 status("running")
-                if epoch >= 8 and state["patience"] >= 5:
+                if epoch >= recipe["minimum_epochs"] and state["patience"] >= recipe["patience"]:
                     reason = "early-stopped"; break
                 if stop_after is not None and epoch >= stop_after:
                     reason = "interrupted"; break
             if (directory/"epoch.json").exists():
                 # Publish selected from the committed bundle, even following a discarded partial epoch.
                 committed = load_bundle(directory)
-                atomic_torch(directory/"selected.pt",committed["best_weights"])
-                write_json(directory/"selected.json",dict(epoch=committed["best_epoch"],score=committed["best"],sha256=digest(directory/"selected.pt"),weights="raw"))
+                publish_selected(directory,committed)
                 selected(directory,job)
             elif reason in TERMINAL:
                 return status("budget-stopped",selected_checkpoint=None)

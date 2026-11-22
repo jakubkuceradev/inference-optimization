@@ -7,9 +7,15 @@ import re
 from ..common import read_json
 from ..model import MLPLOB
 
-RECIPE = dict(optimizer="Adam", learning_rate=0.0003, epochs=20, patience=5,
+LEGACY_RECIPE = dict(optimizer="Adam", learning_rate=0.0003, epochs=20, patience=5,
               minimum_epochs=8, precision="FP32", tf32=False, weights="raw",
               selection="equal-day-macro-f1-earliest-tie", horizon=10)
+DUAL_METRIC_RECIPE = dict(LEGACY_RECIPE, epochs=None, early_stopping="f1-or-validation-loss")
+RECIPE = dict(DUAL_METRIC_RECIPE, early_stopping="validation-loss",
+              selection="minimum-validation-cross-entropy-earliest-tie",
+              scheduler=dict(name="ReduceLROnPlateau", mode="min", factor=0.5,
+                             patience=2, threshold=0.0, threshold_mode="abs",
+                             cooldown=0, min_lr=0.000003, eps=1e-8))
 TIMING = dict(warmups=200, repeats=3, calls=10000, seed=42)
 
 
@@ -43,11 +49,12 @@ def model_config(job):
 
 def validate(plan):
     fields(plan, ("version", "name", "kind", "support", "jobs", "recipe", "timing", "devices"), ("selection_provenance",))
-    if plan["version"] != 1 or plan["kind"] not in ("screen", "followup", "smoke"):
+    if type(plan["version"]) is not int or plan["version"] not in (1, 2, 3) or plan["kind"] not in ("screen", "followup", "smoke"):
         raise ValueError("Unsupported plan version/kind")
     if not isinstance(plan["name"], str) or not re.fullmatch(r"[A-Za-z0-9_-]+", plan["name"]):
         raise ValueError("Invalid plan name")
-    if plan["support"] != 384 or plan["recipe"] != RECIPE:
+    recipe = {1: LEGACY_RECIPE, 2: DUAL_METRIC_RECIPE, 3: RECIPE}[plan["version"]]
+    if plan["support"] != 384 or identity(plan["recipe"]) != identity(recipe):
         raise ValueError("Study requires declared history384 support and adopted recipe")
     fields(plan["timing"], TIMING)
     for k, v in plan["timing"].items():
@@ -97,6 +104,8 @@ def compose(plans):
     jobs = []
     for plan in plans:
         jobs.extend(validate(plan)["jobs"])
+        if identity(plan["recipe"]) != identity(plans[0]["recipe"]):
+            raise ValueError("Composed plans require the same training recipe")
     combined = dict(plans[0], jobs=jobs)
     validate(combined)
     return jobs
